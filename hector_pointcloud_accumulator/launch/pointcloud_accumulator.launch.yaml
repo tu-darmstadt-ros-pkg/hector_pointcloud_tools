@@ -1,0 +1,22 @@
+launch:
+  - arg:
+      name: resolution
+      default: "0.2"
+  - arg:
+      name: frame
+      default: "map"
+  - arg:
+      name: publish_rate
+      default: "0.2" # Publish every 5s by default
+  - node:
+      pkg: hector_pointcloud_accumulator
+      exec: pointcloud_accumulator_node
+      name: pointcloud_accumulator_node
+      output: screen
+      param:
+        - name: resolution
+          value: $(var resolution)
+        - name: frame
+          value: $(var frame)
+        - name: publish_rate
+          value: $(var publish_rate)

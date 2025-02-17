@@ -1,0 +1,14 @@
+launch:
+  - arg:
+      name: name
+      default: pointcloud_saver
+      description: node name
+  - node:
+      pkg: hector_pointcloud_io
+      exec: pointcloud_saver
+      namespace: "$(var namespace)"
+      name: "$(var name)"
+      output: screen
+      param:
+        - name: param
+          value: 1.0
