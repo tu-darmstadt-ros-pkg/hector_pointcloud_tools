@@ -7,9 +7,8 @@
   <description>Saves a pointcloud from a given topic to a file. Can also be ran as a service server.</description>
 
   <maintainer email="fabian@sim.tu-darmstadt.de">Stefan Fabian</maintainer>
-  <author email="fabian@sim.tu-darmstadt.de">Stefan Fabian</author>
-
   <license>MIT</license>
+  <author email="fabian@sim.tu-darmstadt.de">Stefan Fabian</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
