@@ -1,6 +1,5 @@
-//
-// Created by stefan on 12.02.25.
-//
+// Copyright (c) 2025 Stefan Fabian. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #ifndef POINTCLOUD_ACCUMULATOR_LOGGING_HPP
 #define POINTCLOUD_ACCUMULATOR_LOGGING_HPP

@@ -12,10 +12,16 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
+  <build_depend>hector_ros2_utils</build_depend>
+  <build_export_depend>hector_ros2_utils</build_export_depend>
+  <build_depend>libpcl-dev</build_depend>
+  <exec_depend>libpcl-common</exec_depend>
+  <exec_depend>libpcl-io</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

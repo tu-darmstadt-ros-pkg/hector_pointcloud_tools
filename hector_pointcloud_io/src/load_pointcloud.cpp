@@ -1,6 +1,5 @@
-//
-// Created by stefan on 15.02.25.
-//
+// Copyright (c) 2025 Stefan Fabian. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "hector_pointcloud_io/pointcloud_io.hpp"
 
@@ -27,7 +26,8 @@ int main( int argc, char **argv )
   }
   RCLCPP_INFO( node->get_logger(), "Loaded pointcloud with %d points.",
                pointcloud->width * pointcloud->height );
-  auto publisher = node->create_publisher<sensor_msgs::msg::PointCloud2>( topic, rclcpp::QoS( 1 ) );
+  auto publisher = node->create_publisher<sensor_msgs::msg::PointCloud2>(
+      topic, rclcpp::QoS( 1 ).transient_local() );
   if ( pointcloud->header.frame_id.empty() || frame_was_provided ) {
     pointcloud->header.frame_id = frame;
   }

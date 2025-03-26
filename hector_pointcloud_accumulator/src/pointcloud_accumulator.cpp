@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Stefan Fabian. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 #include "hector_pointcloud_accumulator/pointcloud_accumulator.hpp"
 
 #include "./logging.hpp"
