@@ -1,34 +1,91 @@
 # Hector PointCloud Tools
 
-Some simple packages for common pointcloud needs.
+Some simple packages for common pointcloud needs
 
 ## hector_pointcloud_accumulator
 
 Voxel-filtered pointcloud accumulator. You can choose if it should store a running average, the highest z or the point closest to the center for each voxel.
 
+### `pointcloud_accumulator`
+
+#### Subscribed Topics
+
+| Topic       | Type                          | Description                         |
+| ----------- | ----------------------------- | ----------------------------------- |
+| `/cloud_in` | `sensor_msgs/msg/PointCloud2` | Input topic for partial pointclouds |
+
+#### Published Topics
+
+| Topic        | Type                          | Description                             |
+| ------------ | ----------------------------- | --------------------------------------- |
+| `/cloud_out` | `sensor_msgs/msg/PointCloud2` | Output topic for accumulated pointcloud |
+
+#### Services
+
+| Service              | Type                   | Description |
+| -------------------- | ---------------------- | ----------- |
+| `/enable_pointcloud` | `std_srvs/srv/SetBool` | Turn pointcloud processing on or off |
+| `/reset_pointcloud`  | `std_srvs/srv/Trigger` | Clear all accumulated data |
+
+#### Parameters
+
+| Parameter          | Type     | Default     | Description                                                                                                            |
+| ------------------ | -------- | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `publish_rate`     | `double` | `1.0`       | Frequency at which the node publishes on `/cloud_out`                                                                  |
+| `resolution`       | `double` | `0.1`       | Resolution to which all coordinates are rounded                                                                        |
+| `aggregation_mode` | `string` | `"average"` | Specifies in which way nearby points are merged. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
+| `frame`            | `string` | `"map"`     | The frame into which all pointclouds are accumulated                                                                   |
+
 ## hector_pointcloud_io
 
 Executables to load and publish a pointcloud from a file, and to save a pointcloud from a given topic to a file.
-Includes a service server node that can save pointclouds from a topic on service call.
+Includes the service server node `pointcloud_saver` that can save pointclouds from a topic on service call.
 
 Supported formats: `ifs`, `pcd`, `ply`, `vtk`
 
-### Examples
+### `load_pointcloud`
 
-#### Load
+Continuously publishes the selected pointcloud on the selected topic.
 
+Example:
 ```bash
 ros2 run hector_pointcloud_io load_pointcloud /pointcloud_topic path_to_file.pcd 
 ```
 
-#### Save
+### `save_pointcloud`
 
+Stores the first pointcloud received on the selected topic.
+
+Example:
 ```bash
 ros2 run hector_pointcloud_io save_pointcloud /pointcloud_topic path_to_file.ply
 ```
 
-#### Service
+### `pointcloud_saver`
 
+#### Subscribed Topics
+
+| Topic | Type | Description |
+| ----- | ---- | ----------- |
+| `<topic>` | `sensor_msgs/msg/PointCloud2` | The topic from where pointclouds are saved |
+
+#### Services
+
+| Service | Type | Description |
+| ------- | ---- | ----------- |
+| `~/save_pointcloud` | `std_srvs/srv/Trigger` | Saves the first pointcloud received on \<topic> within <timeout_ms> milliseconds after the service call |
+
+#### Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `topic` | `string` | Topic to listen for pointclouds on |
+| `ouput_folder` | `string` | Folder to save pointclouds to |
+| `output_format`| `string` | Output format of pointclouds. Supported: `pcd`, `ifs`, `ply`, `vtk` |
+| `output_filename_prefix` | `string` | Prefix for output filenames. Name will be \<prefix>.\<timestamp>.\<output_format> |
+| `timeout_ms` | `int` | Timeout for waiting for pointclouds in ms. |
+
+Example:
 ```bash
 ros2 run hector_pointcloud_io pointcloud_saver --ros-args -p topic:=/pointcloud_topic -p output_folder:=/path/to/save/folder -p output_format:=vtk -p output_filename_prefix:=my-pointcloud-prefix
 ```
