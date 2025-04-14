@@ -22,19 +22,19 @@ Voxel-filtered pointcloud accumulator. You can choose if it should store a runni
 
 #### Services
 
-| Service              | Type                   | Description |
-| -------------------- | ---------------------- | ----------- |
+| Service              | Type                   | Description                          |
+| -------------------- | ---------------------- | ------------------------------------ |
 | `/enable_pointcloud` | `std_srvs/srv/SetBool` | Turn pointcloud processing on or off |
-| `/reset_pointcloud`  | `std_srvs/srv/Trigger` | Clear all accumulated data |
+| `/reset_pointcloud`  | `std_srvs/srv/Trigger` | Clear all accumulated data           |
 
 #### Parameters
 
-| Parameter          | Type     | Default     | Description                                                                                                            |
-| ------------------ | -------- | ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `publish_rate`     | `double` | `1.0`       | Frequency at which the node publishes on `/cloud_out`                                                                  |
-| `resolution`       | `double` | `0.1`       | Resolution to which all coordinates are rounded                                                                        |
-| `aggregation_mode` | `string` | `"average"` | Specifies in which way nearby points are merged. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
-| `frame`            | `string` | `"map"`     | The frame into which all pointclouds are accumulated                                                                   |
+| Parameter          | Type     | Default     | Description                                                                                                                               |
+| ------------------ | -------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `publish_rate`     | `double` | `1.0`       | Frequency at which the node publishes on `/cloud_out`                                                                                     |
+| `resolution`       | `double` | `0.1`       | Resolution of the voxel filter                                                                                                            |
+| `aggregation_mode` | `string` | `"average"` | Controls how points within the same voxel are integrated. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
+| `frame`            | `string` | `"map"`     | The frame into which all pointclouds are accumulated                                                                                      |
 
 ## hector_pointcloud_io
 
@@ -65,25 +65,25 @@ ros2 run hector_pointcloud_io save_pointcloud /pointcloud_topic path_to_file.ply
 
 #### Subscribed Topics
 
-| Topic | Type | Description |
-| ----- | ---- | ----------- |
+| Topic     | Type                          | Description                                |
+| --------- | ----------------------------- | ------------------------------------------ |
 | `<topic>` | `sensor_msgs/msg/PointCloud2` | The topic from where pointclouds are saved |
 
 #### Services
 
-| Service | Type | Description |
-| ------- | ---- | ----------- |
+| Service             | Type                   | Description                                                                                             |
+| ------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------- |
 | `~/save_pointcloud` | `std_srvs/srv/Trigger` | Saves the first pointcloud received on \<topic> within <timeout_ms> milliseconds after the service call |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| --------- | ---- | ----------- |
-| `topic` | `string` | Topic to listen for pointclouds on |
-| `ouput_folder` | `string` | Folder to save pointclouds to |
-| `output_format`| `string` | Output format of pointclouds. Supported: `pcd`, `ifs`, `ply`, `vtk` |
+| Parameter                | Type     | Description                                                                       |
+| ------------------------ | -------- | --------------------------------------------------------------------------------- |
+| `topic`                  | `string` | Topic to listen for pointclouds on                                                |
+| `ouput_folder`           | `string` | Folder to save pointclouds to                                                     |
+| `output_format`          | `string` | Output format of pointclouds. Supported: `pcd`, `ifs`, `ply`, `vtk`               |
 | `output_filename_prefix` | `string` | Prefix for output filenames. Name will be \<prefix>.\<timestamp>.\<output_format> |
-| `timeout_ms` | `int` | Timeout for waiting for pointclouds in ms. |
+| `timeout_ms`             | `int`    | Timeout for waiting for pointclouds in ms.                                        |
 
 Example:
 ```bash
