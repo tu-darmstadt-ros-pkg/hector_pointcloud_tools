@@ -49,7 +49,7 @@ Continuously publishes the selected pointcloud on the selected topic.
 
 Example:
 ```bash
-ros2 run hector_pointcloud_io load_pointcloud /pointcloud_topic path_to_file.pcd 
+ros2 run hector_pointcloud_io load_pointcloud /pointcloud_topic path_to_file.pcd
 ```
 
 ### `save_pointcloud`

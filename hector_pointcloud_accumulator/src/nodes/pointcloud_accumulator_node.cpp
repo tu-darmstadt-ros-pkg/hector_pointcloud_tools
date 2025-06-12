@@ -22,7 +22,8 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   auto aggregation_mode = get_parameter_or<std::string>( "aggregation_mode", "AVERAGE" );
 
   declare_parameter<std::vector<std::string>>( "topics" );
-  std::vector<std::string> topics = get_parameter_or( "topics" , std::vector<std::string>{ "pointcloud" } );
+  std::vector<std::string> topics =
+      get_parameter_or( "topics", std::vector<std::string>{ "pointcloud" } );
 
   using hector_pointcloud_accumulator::PointcloudAccumulator;
   if ( aggregation_mode == "average" ) {

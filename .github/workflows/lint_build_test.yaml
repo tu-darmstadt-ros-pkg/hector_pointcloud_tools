@@ -63,7 +63,7 @@ jobs:
       - name: rosdep
         run: |
           rosdep update --rosdistro ${{ matrix.setup.rosdistro }} --include-eol-distros
-          rosdep install -y --from-paths src --ignore-src --rosdistro ${{ matrix.setup.rosdistro }} 
+          rosdep install -y --from-paths src --ignore-src --rosdistro ${{ matrix.setup.rosdistro }}
       - name: build
         run: |
           source /opt/ros/${{ matrix.setup.rosdistro }}/setup.bash
