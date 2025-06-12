@@ -20,7 +20,8 @@ class PointcloudAccumulatorBase
 {
 public:
   PointcloudAccumulatorBase( rclcpp::Node &node, double resolution, const std::string &frame,
-                             const rclcpp::Rate &publish_rate );
+                             const rclcpp::Rate &publish_rate,
+                             const std::vector<std::string> &topics );
 
   virtual ~PointcloudAccumulatorBase() = default;
 
@@ -70,7 +71,7 @@ protected:
   tf2_ros::TransformListener tfListener;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr accumulated_publisher_;
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_subscription_;
+  std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr> pointcloud_subscriptions_;
   rclcpp::TimerBase::SharedPtr publish_timer_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_service_;

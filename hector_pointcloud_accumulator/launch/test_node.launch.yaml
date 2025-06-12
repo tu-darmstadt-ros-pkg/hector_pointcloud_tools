@@ -15,6 +15,21 @@ launch:
       name: out_topic
       default: "accumulated_pointcloud"
 
+  - arg:
+      name: "robot_ns"
+      default: "athena"
+  - push_ros_namespace:
+      namespace: "$(var robot_ns)"
+  - set_remap:
+      from: "/tf"
+      to: "tf"
+  - set_remap:
+      from: "/tf_static"
+      to: "tf_static"
+  - set_parameter:
+      name: "use_sim_time"
+      value: "true"
+
   - node:
       pkg: hector_pointcloud_accumulator
       exec: pointcloud_accumulator_node
