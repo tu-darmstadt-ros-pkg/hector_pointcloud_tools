@@ -9,8 +9,11 @@ launch:
       name: publish_rate
       default: "0.2" # Publish every 5s by default
   - arg:
+      name: aggregation_mode
+      default: "average" # Options: average, highest_z, closest_to_center
+  - arg:
       name: topics
-      default: '["front_lidar_sensor/self_filter/filtered","back_lidar_sensor/self_filter/filtered"]'
+      default: '["pointcloud"]'
   - arg:
       name: out_topic
       default: "accumulated_pointcloud"
@@ -28,6 +31,8 @@ launch:
           value: $(var frame)
         - name: publish_rate
           value: $(var publish_rate)
+        - name: aggregation_mode
+          value: $(var aggregation_mode)
         - name: topics
           value: $(var topics)
       remap:

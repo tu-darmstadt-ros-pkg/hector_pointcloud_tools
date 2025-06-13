@@ -19,7 +19,7 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   double resolution = get_parameter_or( "resolution", 0.1 );
   auto frame = get_parameter_or<std::string>( "frame", "map" );
   double rate = get_parameter_or( "publish_rate", 1.0 );
-  auto aggregation_mode = get_parameter_or<std::string>( "aggregation_mode", "AVERAGE" );
+  auto aggregation_mode = get_parameter_or<std::string>( "aggregation_mode", "average" );
 
   declare_parameter<std::vector<std::string>>( "topics" );
   std::vector<std::string> topics =

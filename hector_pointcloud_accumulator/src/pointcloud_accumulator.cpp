@@ -36,7 +36,8 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
         [this]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { processPointcloud( msg ); } ) );
   }
 
-  accumulated_publisher_ = node.create_publisher<sensor_msgs::msg::PointCloud2>( "cloud_out", 1 );
+  accumulated_publisher_ =
+      node.create_publisher<sensor_msgs::msg::PointCloud2>( "accumulated_pointcloud", 1 );
   publish_timer_ = node.create_wall_timer( publish_rate.period(), [this]() { publishPointcloud(); } );
 
   accumulated_cloud_.header.frame_id = frame_;

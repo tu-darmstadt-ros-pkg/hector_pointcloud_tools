@@ -8,17 +8,22 @@ Voxel-filtered pointcloud accumulator. You can choose if it should store a runni
 
 ### `pointcloud_accumulator`
 
+Example:
+```bash
+ros2 launch hector_pointcloud_accumulator pointcloud_accumulator.launch.yaml resolution:=0.025 frame:=map publish_rate:=0.2 aggregation_mode:=average topics:=["pointcloud1","pointcloud2"] output_topic:=accumulated_pointcloud
+```
+
 #### Subscribed Topics
 
-| Topic       | Type                          | Description                         |
-| ----------- | ----------------------------- | ----------------------------------- |
-| `/cloud_in` | `sensor_msgs/msg/PointCloud2` | Input topic for partial pointclouds |
+| Topic         | Type                          | Description                         |
+| ------------- | ----------------------------- | ----------------------------------- |
+| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for partial pointclouds |
 
 #### Published Topics
 
-| Topic        | Type                          | Description                             |
-| ------------ | ----------------------------- | --------------------------------------- |
-| `/cloud_out` | `sensor_msgs/msg/PointCloud2` | Output topic for accumulated pointcloud |
+| Topic                     | Type                          | Description                             |
+| ------------------------- | ----------------------------- | --------------------------------------- |
+| `/accumulated_pointcloud` | `sensor_msgs/msg/PointCloud2` | Output topic for accumulated pointcloud |
 
 #### Services
 
@@ -29,12 +34,14 @@ Voxel-filtered pointcloud accumulator. You can choose if it should store a runni
 
 #### Parameters
 
-| Parameter          | Type     | Default     | Description                                                                                                                               |
-| ------------------ | -------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `publish_rate`     | `double` | `1.0`       | Frequency at which the node publishes on `/cloud_out`                                                                                     |
-| `resolution`       | `double` | `0.1`       | Resolution of the voxel filter                                                                                                            |
-| `aggregation_mode` | `string` | `"average"` | Controls how points within the same voxel are integrated. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
-| `frame`            | `string` | `"map"`     | The frame into which all pointclouds are accumulated                                                                                      |
+| Parameter          | Type           | Default                    | Description                                                                                                                     |
+| ------------------ | -------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `resolution`       | `double`       | `0.025`                      | Resolution of the voxel filter                                                                                                |
+| `frame`            | `string`       | `"map"`                    | The frame into which all pointclouds are accumulated                                                                            |
+| `publish_rate`     | `double`       | `0.2`                      | Frequency at which the node publishes on `/cloud_out`                                                                           |
+| `aggregation_mode` | `string`       | `"average"`                | Controls how points within the same voxel are integrated. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
+| `topics`           | `string_array` | `["pointcloud"]`           | The topics names of all topics that should be accumulated together                                                              |
+| `output_topic`     | `string`       | `"accumulated_pointcloud"` | The topic name of the accumulated pointcloud                                                                                    |
 
 ## hector_pointcloud_io
 
