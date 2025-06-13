@@ -15,9 +15,9 @@ ros2 launch hector_pointcloud_accumulator pointcloud_accumulator.launch.yaml res
 
 #### Subscribed Topics
 
-| Topic         | Type                          | Description                         |
-| ------------- | ----------------------------- | ----------------------------------- |
-| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for partial pointclouds |
+| Topic         | Type                          | Description                                                          |
+| ------------- | ----------------------------- | -------------------------------------------------------------------- |
+| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Default input topic for pointclouds if parameter topics is not used. |
 
 #### Published Topics
 
