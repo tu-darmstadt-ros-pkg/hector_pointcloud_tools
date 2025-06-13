@@ -33,7 +33,8 @@ ament_target_dependencies(
   pcl_conversions)
 
 rclcpp_components_register_node(
-  hector_pointcloud_io PLUGIN "hector_pointcloud_io::PointcloudSaver"
+  hector_pointcloud_io
+  PLUGIN "hector_pointcloud_io::PointcloudSaver"
   EXECUTABLE pointcloud_saver)
 
 add_executable(save_pointcloud src/save_pointcloud.cpp)
