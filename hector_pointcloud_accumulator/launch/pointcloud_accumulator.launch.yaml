@@ -1,18 +1,29 @@
 launch:
   - arg:
       name: resolution
-      default: "0.2"
+      default: "0.025"
   - arg:
       name: frame
       default: "map"
   - arg:
       name: publish_rate
       default: "0.2" # Publish every 5s by default
+  - arg:
+      name: aggregation_mode
+      default: "average" # Options: average, highest_z, closest_to_center
+  - arg:
+      name: topics
+      default: '["pointcloud"]'
+  - arg:
+      name: out_topic
+      default: "accumulated_pointcloud"
+
   - node:
       pkg: hector_pointcloud_accumulator
       exec: pointcloud_accumulator_node
       name: pointcloud_accumulator_node
       output: screen
+      respawn: "true"
       param:
         - name: resolution
           value: $(var resolution)
@@ -20,3 +31,10 @@ launch:
           value: $(var frame)
         - name: publish_rate
           value: $(var publish_rate)
+        - name: aggregation_mode
+          value: $(var aggregation_mode)
+        - name: topics
+          value: $(var topics)
+      remap:
+        - from: "cloud_out"
+          to: "$(var out_topic)"

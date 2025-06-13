@@ -12,7 +12,8 @@ namespace hector_pointcloud_accumulator
 
 PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double resolution,
                                                       const std::string &frame,
-                                                      const rclcpp::Rate &publish_rate )
+                                                      const rclcpp::Rate &publish_rate,
+                                                      const std::vector<std::string> &topics )
     : frame_( frame ), resolution_( resolution ), tfBuffer( node.get_clock() ), tfListener( tfBuffer )
 {
 
@@ -29,11 +30,14 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
         res->success = true;
       } );
 
-  pointcloud_subscription_ = node.create_subscription<sensor_msgs::msg::PointCloud2>(
-      "cloud_in", 10,
-      [this]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { processPointcloud( msg ); } );
+  for ( const auto &topic : topics ) {
+    pointcloud_subscriptions_.emplace_back( node.create_subscription<sensor_msgs::msg::PointCloud2>(
+        topic, 10,
+        [this]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { processPointcloud( msg ); } ) );
+  }
 
-  accumulated_publisher_ = node.create_publisher<sensor_msgs::msg::PointCloud2>( "cloud_out", 1 );
+  accumulated_publisher_ =
+      node.create_publisher<sensor_msgs::msg::PointCloud2>( "accumulated_pointcloud", 1 );
   publish_timer_ = node.create_wall_timer( publish_rate.period(), [this]() { publishPointcloud(); } );
 
   accumulated_cloud_.header.frame_id = frame_;

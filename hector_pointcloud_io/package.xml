@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
 
@@ -12,15 +12,15 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-
+  <build_depend>hector_ros2_utils</build_depend>
+  <build_depend>libpcl-all-dev</build_depend>
+  <build_export_depend>hector_ros2_utils</build_export_depend>
   <depend>pcl_conversions</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
+  <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
-  <build_depend>hector_ros2_utils</build_depend>
-  <build_export_depend>hector_ros2_utils</build_export_depend>
-  <build_depend>libpcl-all-dev</build_depend>
   <exec_depend>libpcl-common</exec_depend>
   <exec_depend>libpcl-io</exec_depend>
 
