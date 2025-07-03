@@ -45,7 +45,7 @@ target_link_libraries(load_pointcloud hector_pointcloud_io)
 
 install(
   TARGETS hector_pointcloud_io save_pointcloud load_pointcloud
-  LIBRARY DESTINATION lib/${PROJECT_NAME}
+  LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
