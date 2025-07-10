@@ -1,0 +1,47 @@
+launch:
+  - arg:
+      name: name
+      default: "/pointcloud_decimator"
+      description: The name of the node
+  - arg:
+      name: input_topic
+      default: "/pointcloud"
+      description: Topic for pointcloud inputs
+  - arg:
+      name: output_topic
+      default: "$(var input_topic)_decimated"
+      description: Topic for decimated pointcloud
+  - arg:
+      name: elimination_method
+      default: "random"
+      description: The method used to decimate the pointcloud
+  - arg:
+      name: elimination_quantifier
+      default: "fraction"
+      description: How the amount of points to be eliminated is quantified
+  - arg:
+      name: point_fraction
+      default: "0.2"
+      description: The fraction of points to eliminate
+  - arg:
+      name: point_count
+      default: "1000"
+      description: The number of points to keep
+  - node:
+      pkg: hector_pointcloud_decimator
+      exec: pointcloud_decimator
+      name: $(var name)
+      output: screen
+      param:
+        - name: input_topic
+          value: $(var input_topic)
+        - name: output_topic
+          value: $(var output_topic)
+        - name: elimination_method
+          value: $(var elimination_method)
+        - name: elimination_quantifier
+          value: $(var elimination_quantifier)
+        - name: point_fraction
+          value: $(var point_fraction)
+        - name: point_count
+          value: $(var point_count)
