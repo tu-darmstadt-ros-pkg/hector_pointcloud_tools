@@ -6,11 +6,10 @@
 #include <vector>
 
 #include <hector_ros2_utils/node.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/bool.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <point_cloud_transport/point_cloud_transport.hpp>
-
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 namespace hector_pointcloud_decimator
 {
@@ -24,12 +23,11 @@ private:
   //! @brief Sets up subscribers, publishers, etc. to configure the node
   void setup();
 
-  void pointcloudCallback( const sensor_msgs::msg::PointCloud2& msg );
+  void pointcloudCallback( const sensor_msgs::msg::PointCloud2 &msg );
 
+  void enabledCallback( const bool &enabled );
 
-  void enabledCallback( const bool& enabled );
-
-  void msgEnabledCallback( const std_msgs::msg::Bool::ConstSharedPtr& enabled );
+  void msgEnabledCallback( const std_msgs::msg::Bool::ConstSharedPtr &enabled );
 
   void publisherSubscriptionCallback();
 
@@ -61,6 +59,6 @@ private:
   bool enabled_ = true;
 };
 
-}
+} // namespace hector_pointcloud_decimator
 
 #endif // HECTOR_POINTCLOUD_DECIMATOR_POINTCLOUD_DECIMATOR_HPP
