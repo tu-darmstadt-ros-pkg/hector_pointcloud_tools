@@ -115,20 +115,16 @@ This method should prevent noticeable patterns in the pointcloud, but will likel
 
 #### Subscribed Topics
 
-| Topic                 | Type                          | Description                 |
-| --------------------- | ----------------------------- | --------------------------- |
-| `<input>`             | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
-|                       |                               |                             |
-| `<node_name>/enabled` | `std_msgs/msg/Bool`           | Can enable/disable the node |
+| Topic     | Type                          | Description                 |
+| --------- | ----------------------------- | --------------------------- |
+| `<input>` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
 
 
 #### Published Topics
 
-| Topic                        | Type                    | Description                                                |
-| ---------------------------- | ----------------------- | ---------------------------------------------------------- |
-| `<output>`                   | `point_cloud_transport` | Output topic for decimated pointclouds                     |
-|                              |                         |                                                            |
-| `<node_name>/enabled_status` | `std_msgs/msg/Bool`     | Sends enabled status whenever the node is enabled/disabled |
+| Topic      | Type                    | Description                            |
+| ---------- | ----------------------- | -------------------------------------- |
+| `<output>` | `point_cloud_transport` | Output topic for decimated pointclouds |
 
 #### Services
 
@@ -144,8 +140,7 @@ This method should prevent noticeable patterns in the pointcloud, but will likel
 | ------------------------ | ------------- | --------------------- | -------------------------------------------------------------------------- |
 | `input`                  | `std::string` | `"/pointcloud"`       | Input topic for pointclouds                                                |
 | `output`                 | `std::string` | `"<input>_decimated"` | Output topic for decimated pointclouds                                     |
-| `elimination_method`     | `std::string` | `"count"`            | How the pointcloud is decimated (`random`/`count`)                         |
+| `elimination_method`     | `std::string` | `"count"`             | How the pointcloud is decimated (`random`/`count`)                         |
 | `elimination_quantifier` | `std::string` | `"fraction"`          | How the amount of points to be kept is quantified (`fraction`/`count`)     |
 | `point_fraction`         | `double`      | `0.1`                 | Fraction of points to keep (used if `elimination_quantifier = "fraction"`) |
 | `point_count`            | `int`         | `1000`                | Number of points to keep (used if `elimination_quantifier = "count"`)      |
-| `enabled`                | `bool`        | `true`                | Whether the node starts enabled                                            |

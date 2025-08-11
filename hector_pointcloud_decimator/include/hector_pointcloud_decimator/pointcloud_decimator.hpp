@@ -17,7 +17,7 @@ namespace hector_pointcloud_decimator
 class PointcloudDecimator : public hector::Node
 {
 public:
-  PointcloudDecimator();
+  PointcloudDecimator( const rclcpp::NodeOptions &options );
 
 private:
   //! @brief Sets up subscribers, publishers, etc. to configure the node
@@ -25,13 +25,7 @@ private:
 
   void pointcloudCallback( const sensor_msgs::msg::PointCloud2 &msg );
 
-  void enabledCallback( const bool &enabled );
-
-  void msgEnabledCallback( const std_msgs::msg::Bool::ConstSharedPtr &enabled );
-
   void publisherSubscriptionCallback();
-
-  void publishEnableStatus() const;
 
   void startSubscribers();
 
@@ -56,7 +50,6 @@ private:
   int point_count_;
 
   bool has_subscribers_ = true;
-  bool enabled_ = true;
 };
 
 } // namespace hector_pointcloud_decimator

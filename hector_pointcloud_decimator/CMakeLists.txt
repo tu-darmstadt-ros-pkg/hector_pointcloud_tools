@@ -16,30 +16,39 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(point_cloud_transport REQUIRED)
+find_package(rclcpp_components REQUIRED)
 
+add_library(pointcloud_decimator_component SHARED src/pointcloud_decimator.cpp)
 
-add_executable(pointcloud_decimator src/pointcloud_decimator.cpp)
+target_include_directories(
+  pointcloud_decimator_component
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         $<INSTALL_INTERFACE:include>)
 
-target_include_directories(pointcloud_decimator PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-
-ament_target_dependencies(pointcloud_decimator
+ament_target_dependencies(
+  pointcloud_decimator_component
   hector_ros2_utils
   rclcpp
   std_msgs
   sensor_msgs
   point_cloud_transport
-)
+  rclcpp_components)
 
-install(TARGETS pointcloud_decimator
-  DESTINATION lib/${PROJECT_NAME}
-)
+rclcpp_components_register_node(
+  pointcloud_decimator_component PLUGIN
+  "hector_pointcloud_decimator::PointcloudDecimator" EXECUTABLE
+  pointcloud_decimator)
+ament_export_targets(export_pointcloud_decimator_component)
+install(
+  TARGETS pointcloud_decimator_component
+  EXPORT export_pointcloud_decimator_component
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
 
-install(DIRECTORY config launch
+install(
+  DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
-  OPTIONAL
-)
+  OPTIONAL)
 
 ament_package()

@@ -9,10 +9,10 @@
 namespace hector_pointcloud_decimator
 {
 
-PointcloudDecimator::PointcloudDecimator()
-    : Node( "pointcloud_decimator" ), input_( "/pointcloud" ), output_( "/pointcloud_decimated" ),
-      elimination_method_( "count" ), elimination_quantifier_( "fraction" ), point_fraction_( 0.1 ),
-      point_count_( 1000 )
+PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
+    : Node( "pointcloud_decimator", options ), input_( "/pointcloud" ),
+      output_( "/pointcloud_decimated" ), elimination_method_( "count" ),
+      elimination_quantifier_( "fraction" ), point_fraction_( 0.1 ), point_count_( 1000 )
 {
   // Parameters
   // input:                  Input topic
@@ -21,7 +21,6 @@ PointcloudDecimator::PointcloudDecimator()
   // elimination_quantifier: How the amount of points to be eliminated is specified
   // point_fraction:         Fraction of points to keep
   // point_count:            Number of points to keep
-  // enabled:                Whether the node should function
 
   declare_reconfigurable_parameter( "input", std::ref( input_ ), "The input topic for pointclouds",
                                     hector::ParameterOptions<std::string>().onUpdate(
@@ -54,10 +53,6 @@ PointcloudDecimator::PointcloudDecimator()
   declare_reconfigurable_parameter(
       "point_count", std::ref( point_count_ ), "The total number of points to keep",
       hector::ParameterOptions<int>().onValidate( []( const int &value ) { return value >= 0; } ) );
-  declare_reconfigurable_parameter(
-      "enabled", std::ref( enabled_ ), "Whether the node should be active",
-      hector::ParameterOptions<bool>().onUpdate(
-          [this]( const bool &value ) { this->enabledCallback( value ); } ) );
 
   pct_node_ = std::make_shared<rclcpp::Node>( static_cast<std::string>( get_name() ) + "_pct" );
   pct_ = std::make_unique<point_cloud_transport::PointCloudTransport>( pct_node_ );
@@ -75,13 +70,6 @@ void PointcloudDecimator::setup()
   pointcloud_publisher_ = pct_->advertise( output_, 10 );
   RCLCPP_INFO( get_logger(), "Publishing results to '%s'", pointcloud_publisher_.getTopic().c_str() );
 
-  // Node enable subscription / publisher
-  enabled_sub_ = create_subscription<std_msgs::msg::Bool>(
-      static_cast<std::string>( get_name() ) + "/enabled", 10,
-      std::bind( &PointcloudDecimator::msgEnabledCallback, this, std::placeholders::_1 ) );
-  enabled_pub_ = create_publisher<std_msgs::msg::Bool>(
-      static_cast<std::string>( get_name() ) + "/enabled_status", 10 );
-
   check_subscribers_timer_ =
       create_wall_timer( std::chrono::seconds( 1 ),
                          std::bind( &PointcloudDecimator::publisherSubscriptionCallback, this ) );
@@ -94,16 +82,18 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
   const size_t point_step = msg.point_step;
   const size_t input_size = msg.height * msg.width;
 
-  const size_t point_count =
-      elimination_quantifier_ == "count"
-          ? std::min( static_cast<size_t>( point_count_ ), input_size )
-          : static_cast<size_t>( static_cast<double>( input_size ) * point_fraction_ );
-  const double point_fraction =
-      elimination_quantifier_ == "count"
-          ? std::min( 1.0, static_cast<double>( point_count_ ) / static_cast<double>( input_size ) )
-          : point_fraction_;
+  size_t point_count;
+  double point_fraction;
+  if ( elimination_quantifier_ == "count" ) {
+    point_count = std::min( static_cast<size_t>( point_count_ ), input_size );
+    point_fraction =
+        std::min( 1.0, static_cast<double>( point_count_ ) / static_cast<double>( input_size ) );
+  } else {
+    point_count = static_cast<size_t>( static_cast<double>( input_size ) * point_fraction_ );
+    point_fraction = point_fraction_;
+  }
 
-  RCLCPP_INFO( get_logger(), "Reducing %lu points to %lu", input_size, point_count );
+  RCLCPP_DEBUG( get_logger(), "Reducing %lu points to %lu", input_size, point_count );
 
   // Copy shared fields
   sensor_msgs::msg::PointCloud2 output;
@@ -112,10 +102,10 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
   output.fields = msg.fields;
   output.is_bigendian = msg.is_bigendian;
   output.point_step = msg.point_step;
-  output.is_dense = msg.is_dense;
+  output.is_dense = false;
 
   output.data.clear();
-  output.data.reserve( output.row_step );
+  output.data.reserve( point_count * point_step );
 
   if ( elimination_method_ == "random" ) {
     // Choose randomly which points to include. This will likely not match the chosen fraction/count exactly
@@ -142,33 +132,7 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
   output.row_step = output.data.size();
   output.width = output.row_step / point_step;
 
-  printf( "output length: %d\n", output.width );
-
   pointcloud_publisher_.publish( output );
-}
-
-void PointcloudDecimator::enabledCallback( const bool &enabled )
-{
-  // Changed to disabled
-  if ( !enabled && enabled_ ) {
-    enabled_ = false;
-    if ( has_subscribers_ )
-      stopSubscribers();
-  }
-  // Changed to enabled
-  if ( enabled && !enabled_ ) {
-    enabled_ = true;
-    if ( has_subscribers_ )
-      startSubscribers();
-  }
-
-  publishEnableStatus();
-}
-
-void PointcloudDecimator::msgEnabledCallback( const std_msgs::msg::Bool::ConstSharedPtr &enabled )
-{
-  const rclcpp::Parameter parameter( "enabled", rclcpp::ParameterValue( enabled->data ) );
-  set_parameter( parameter );
 }
 
 void PointcloudDecimator::publisherSubscriptionCallback()
@@ -177,30 +141,18 @@ void PointcloudDecimator::publisherSubscriptionCallback()
   const size_t subscribers = pointcloud_publisher_.getNumSubscribers();
 
   RCLCPP_DEBUG_STREAM( get_logger(), "Subscribers: " << subscribers
-                                                     << " has_subscribers_: " << has_subscribers_
-                                                     << " enabled_: " << enabled_ );
+                                                     << " has_subscribers_: " << has_subscribers_ );
 
   // Changed to no subscribers
   if ( subscribers == 0 && has_subscribers_ ) {
     has_subscribers_ = false;
-    if ( enabled_ )
-      stopSubscribers();
+    stopSubscribers();
   }
   // Changed from no subscribers
   if ( subscribers > 0 && !has_subscribers_ ) {
     has_subscribers_ = true;
-    if ( enabled_ )
-      startSubscribers();
+    startSubscribers();
   }
-}
-
-void PointcloudDecimator::publishEnableStatus() const
-{
-  std_msgs::msg::Bool bool_msg;
-  bool_msg.data = enabled_;
-  enabled_pub_->publish( bool_msg );
-
-  RCLCPP_INFO_STREAM( get_logger(), "Node " << ( enabled_ ? "Enabled" : "Disabled" ) );
 }
 
 void PointcloudDecimator::startSubscribers()
@@ -218,12 +170,5 @@ void PointcloudDecimator::stopSubscribers()
 
 } // namespace hector_pointcloud_decimator
 
-int main( int argc, char *argv[] )
-{
-
-  rclcpp::init( argc, argv );
-  rclcpp::spin( std::make_shared<hector_pointcloud_decimator::PointcloudDecimator>() );
-  rclcpp::shutdown();
-
-  return 0;
-}
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE( hector_pointcloud_decimator::PointcloudDecimator )
