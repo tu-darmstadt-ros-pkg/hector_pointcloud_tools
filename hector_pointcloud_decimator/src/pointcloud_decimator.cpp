@@ -54,15 +54,21 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
       "point_count", std::ref( point_count_ ), "The total number of points to keep",
       hector::ParameterOptions<int>().onValidate( []( const int &value ) { return value >= 0; } ) );
 
-  // pct_node_ = std::make_shared<rclcpp::Node>( static_cast<std::string>( get_name() ) + "_pct" );
   pct_ = std::make_unique<point_cloud_transport::PointCloudTransport>( shared_from_this() );
+
+  RCLCPP_INFO_STREAM( get_logger(), "Starting the node with the following parameters:" );
+  RCLCPP_INFO_STREAM( get_logger(), "  input:                  " << input_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  output:                 " << output_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  elimination_method:     " << elimination_method_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  elimination_quantifier: " << elimination_quantifier_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  point_fraction:         " << point_fraction_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  point_count:            " << point_count_ );
+
   setup();
 }
 
 void PointcloudDecimator::setup()
 {
-  pointcloud_subscriber_ = {};
-
   // publisher for publishing outgoing messages
   pointcloud_publisher_ = pct_->advertise( output_, 10 );
   RCLCPP_INFO( get_logger(), "Publishing to '%s'", pointcloud_publisher_.getTopic().c_str() );

@@ -32,7 +32,6 @@ private:
   void stopSubscribers();
 
 private:
-  // rclcpp::Node::SharedPtr pct_node_;
   std::unique_ptr<point_cloud_transport::PointCloudTransport> pct_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_subscriber_;
   point_cloud_transport::Publisher pointcloud_publisher_;
