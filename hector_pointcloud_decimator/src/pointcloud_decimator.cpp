@@ -54,24 +54,21 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
       "point_count", std::ref( point_count_ ), "The total number of points to keep",
       hector::ParameterOptions<int>().onValidate( []( const int &value ) { return value >= 0; } ) );
 
-  pct_node_ = std::make_shared<rclcpp::Node>( static_cast<std::string>( get_name() ) + "_pct" );
-  pct_ = std::make_unique<point_cloud_transport::PointCloudTransport>( pct_node_ );
+  // pct_node_ = std::make_shared<rclcpp::Node>( static_cast<std::string>( get_name() ) + "_pct" );
+  pct_ = std::make_unique<point_cloud_transport::PointCloudTransport>( shared_from_this() );
   setup();
 }
 
 void PointcloudDecimator::setup()
 {
-  // subscriber for handling incoming messages
-  pointcloud_subscriber_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-      input_, 10, std::bind( &PointcloudDecimator::pointcloudCallback, this, std::placeholders::_1 ) );
-  RCLCPP_INFO( get_logger(), "Subscribed to '%s'", pointcloud_subscriber_->get_topic_name() );
+  pointcloud_subscriber_ = {};
 
   // publisher for publishing outgoing messages
   pointcloud_publisher_ = pct_->advertise( output_, 10 );
-  RCLCPP_INFO( get_logger(), "Publishing results to '%s'", pointcloud_publisher_.getTopic().c_str() );
+  RCLCPP_INFO( get_logger(), "Publishing to '%s'", pointcloud_publisher_.getTopic().c_str() );
 
   check_subscribers_timer_ =
-      create_wall_timer( std::chrono::seconds( 1 ),
+      create_wall_timer( std::chrono::milliseconds( 100 ),
                          std::bind( &PointcloudDecimator::publisherSubscriptionCallback, this ) );
 
   std::srand( std::time( {} ) );
@@ -137,11 +134,7 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
 
 void PointcloudDecimator::publisherSubscriptionCallback()
 {
-
   const size_t subscribers = pointcloud_publisher_.getNumSubscribers();
-
-  RCLCPP_DEBUG_STREAM( get_logger(), "Subscribers: " << subscribers
-                                                     << " has_subscribers_: " << has_subscribers_ );
 
   // Changed to no subscribers
   if ( subscribers == 0 && has_subscribers_ ) {
@@ -157,7 +150,7 @@ void PointcloudDecimator::publisherSubscriptionCallback()
 
 void PointcloudDecimator::startSubscribers()
 {
-  RCLCPP_INFO( get_logger(), "Starting subscribers" );
+  RCLCPP_INFO( get_logger(), "Starting subscriber" );
   pointcloud_subscriber_ = create_subscription<sensor_msgs::msg::PointCloud2>(
       input_, 10, std::bind( &PointcloudDecimator::pointcloudCallback, this, std::placeholders::_1 ) );
 }

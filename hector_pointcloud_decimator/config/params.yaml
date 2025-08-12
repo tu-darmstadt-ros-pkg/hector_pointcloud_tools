@@ -1,9 +1,9 @@
 /**:
   ros__parameters:
-    name: "/pointcloud_decimator"
-    input_topic: "/pointcloud"
-    output_topic: "/pointcloud_decimated"
-    elimination_method: "random"
+    name: "pointcloud_decimator"
+    input: "/pointcloud"
+    output: "/pointcloud_decimated"
+    elimination_method: "count"
     elimination_quantifier: "fraction"
     point_fraction: 0.2
     point_count: 1000
