@@ -93,6 +93,8 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
 
   output.data.clear();
   output.data.reserve( point_count * point_step );
+  const std::back_insert_iterator<std::vector<unsigned char>> output_iterator =
+      std::back_inserter( output.data );
 
   if ( elimination_method_ == "random" ) {
     // Choose points randomly. This will usually not match the chosen fraction/count exactly
@@ -102,14 +104,14 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
       if ( static_cast<double>( std::rand() ) / RAND_MAX > point_fraction )
         continue;
 
-      std::copy_n( msg.data.begin() + source_index, point_step, std::back_inserter( output.data ) );
+      std::copy_n( msg.data.begin() + source_index, point_step, output_iterator );
     }
   } else {
     // Choose points with roughly equal distance. This could theoretically cause artifacts
     for ( size_t point = 0; point < point_count; ++point ) {
       const size_t source_index = static_cast<size_t>( point / point_fraction ) * point_step;
 
-      std::copy_n( msg.data.begin() + source_index, point_step, std::back_inserter( output.data ) );
+      std::copy_n( msg.data.begin() + source_index, point_step, output_iterator );
     }
   }
 
@@ -162,7 +164,7 @@ void PointcloudDecimator::printNodeStatus() const
   if ( output_ == output_remapped ) {
     RCLCPP_INFO_STREAM( get_logger(), "  output:                 " << output_ );
   } else {
-    RCLCPP_INFO_STREAM( get_logger(), "  output remapped to:        " << output_remapped );
+    RCLCPP_INFO_STREAM( get_logger(), "  output remapped to:     " << output_remapped );
   }
   RCLCPP_INFO_STREAM( get_logger(), "  elimination_method:     " << elimination_method_ );
   RCLCPP_INFO_STREAM( get_logger(), "  elimination_quantifier: " << elimination_quantifier_ );
