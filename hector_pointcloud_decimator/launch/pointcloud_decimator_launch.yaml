@@ -6,14 +6,6 @@ launch:
     default: "pointcloud_decimator"
     description: The name of the node
 - arg:
-    name: input
-    default: "/pointcloud"
-    description: Topic for pointcloud inputs
-- arg:
-    name: output
-    default: "$(var input)_decimated"
-    description: Topic for decimated pointcloud
-- arg:
     name: elimination_method
     default: "count"
     description: The method used to decimate the pointcloud
@@ -35,10 +27,6 @@ launch:
     name: $(var name)
     output: screen
     param:
-      - name: input
-        value: $(var input)
-      - name: output
-        value: $(var output)
       - name: elimination_method
         value: $(var elimination_method)
       - name: elimination_quantifier

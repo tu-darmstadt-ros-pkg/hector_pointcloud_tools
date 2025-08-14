@@ -31,6 +31,8 @@ private:
 
   void stopSubscribers();
 
+  void printNodeStatus() const;
+
 private:
   std::unique_ptr<point_cloud_transport::PointCloudTransport> pct_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_subscriber_;
@@ -39,6 +41,7 @@ private:
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enabled_sub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr enabled_pub_;
   rclcpp::TimerBase::SharedPtr check_subscribers_timer_;
+  rclcpp::node_interfaces::NodeTopicsInterface::SharedPtr node_topics_interface_;
 
   // Parameters
   std::string input_;

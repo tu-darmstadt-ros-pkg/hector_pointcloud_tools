@@ -115,16 +115,16 @@ This method should prevent noticeable patterns in the pointcloud, but will likel
 
 #### Subscribed Topics
 
-| Topic     | Type                          | Description                 |
-| --------- | ----------------------------- | --------------------------- |
-| `<input>` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+| Topic         | Type                          | Description                 |
+| ------------- | ----------------------------- | --------------------------- |
+| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
 
 
 #### Published Topics
 
-| Topic      | Type                    | Description                            |
-| ---------- | ----------------------- | -------------------------------------- |
-| `<output>` | `point_cloud_transport` | Output topic for decimated pointclouds |
+| Topic                   | Type                    | Description                            |
+| ----------------------- | ----------------------- | -------------------------------------- |
+| `/pointcloud_decimated` | `point_cloud_transport` | Output topic for decimated pointclouds |
 
 #### Services
 
@@ -138,8 +138,6 @@ This method should prevent noticeable patterns in the pointcloud, but will likel
 
 | Parameter                | Type          | Default               | Description                                                                |
 | ------------------------ | ------------- | --------------------- | -------------------------------------------------------------------------- |
-| `input`                  | `std::string` | `"/pointcloud"`       | Input topic for pointclouds                                                |
-| `output`                 | `std::string` | `"<input>_decimated"` | Output topic for decimated pointclouds                                     |
 | `elimination_method`     | `std::string` | `"count"`             | How the pointcloud is decimated (`random`/`count`)                         |
 | `elimination_quantifier` | `std::string` | `"fraction"`          | How the amount of points to be kept is quantified (`fraction`/`count`)     |
 | `point_fraction`         | `double`      | `0.1`                 | Fraction of points to keep (used if `elimination_quantifier = "fraction"`) |

@@ -15,21 +15,11 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
       elimination_quantifier_( "fraction" ), point_fraction_( 0.1 ), point_count_( 1000 )
 {
   // Parameters
-  // input:                  Input topic
-  // output:                 Output topic
   // elimination_method:     How to decimate the pointcloud
   // elimination_quantifier: How the amount of points to be eliminated is specified
   // point_fraction:         Fraction of points to keep
   // point_count:            Number of points to keep
 
-  declare_reconfigurable_parameter( "input", std::ref( input_ ), "The input topic for pointclouds",
-                                    hector::ParameterOptions<std::string>().onUpdate(
-                                        [this]( const std::string & ) { this->setup(); } ) );
-  // Base the default output topic on the chosen input topic
-  output_ = input_ + "_decimated";
-  declare_reconfigurable_parameter(
-      "output", std::ref( output_ ), "The output topic for pointcloud_transport",
-      hector::ParameterOptions<std::string>().onUpdate( [this]( const auto & ) { this->setup(); } ) );
   declare_reconfigurable_parameter(
       "elimination_method", std::ref( elimination_method_ ),
       "The method used to decimate the pointcloud",
@@ -55,14 +45,9 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
       hector::ParameterOptions<int>().onValidate( []( const int &value ) { return value >= 0; } ) );
 
   pct_ = std::make_unique<point_cloud_transport::PointCloudTransport>( shared_from_this() );
+  node_topics_interface_ = get_node_topics_interface();
 
-  RCLCPP_INFO_STREAM( get_logger(), "Starting the node with the following parameters:" );
-  RCLCPP_INFO_STREAM( get_logger(), "  input:                  " << input_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  output:                 " << output_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  elimination_method:     " << elimination_method_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  elimination_quantifier: " << elimination_quantifier_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  point_fraction:         " << point_fraction_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  point_count:            " << point_count_ );
+  printNodeStatus();
 
   setup();
 }
@@ -71,7 +56,6 @@ void PointcloudDecimator::setup()
 {
   // publisher for publishing outgoing messages
   pointcloud_publisher_ = pct_->advertise( output_, 10 );
-  RCLCPP_INFO( get_logger(), "Publishing to '%s'", pointcloud_publisher_.getTopic().c_str() );
 
   check_subscribers_timer_ =
       create_wall_timer( std::chrono::milliseconds( 100 ),
@@ -118,17 +102,19 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
       if ( static_cast<double>( std::rand() ) / RAND_MAX > point_fraction )
         continue;
 
-      for ( size_t e = 0; e < point_step; ++e ) {
-        output.data.push_back( msg.data[source_index + e] );
-      }
+      std::copy_n( msg.data.begin() + source_index, point_step, std::back_inserter( output.data ) );
+      // for ( size_t e = 0; e < point_step; ++e ) {
+      //   output.data.push_back( msg.data[source_index + e] );
+      // }
     }
   } else {
     for ( size_t point = 0; point < point_count; ++point ) {
       const size_t source_index = static_cast<size_t>( point / point_fraction ) * point_step;
 
-      for ( size_t e = 0; e < point_step; ++e ) {
-        output.data.push_back( msg.data[source_index + e] );
-      }
+      std::copy_n( msg.data.begin() + source_index, point_step, std::back_inserter( output.data ) );
+      // for ( size_t e = 0; e < point_step; ++e ) {
+      //   output.data.push_back( msg.data[source_index + e] );
+      // }
     }
   }
 
@@ -165,6 +151,28 @@ void PointcloudDecimator::stopSubscribers()
 {
   RCLCPP_INFO( get_logger(), "Stopping subscribers" );
   pointcloud_subscriber_.reset();
+}
+
+void PointcloudDecimator::printNodeStatus() const
+{
+  const std::string input_remapped = node_topics_interface_->resolve_topic_name( input_ );
+  const std::string output_remapped = node_topics_interface_->resolve_topic_name( output_ );
+
+  RCLCPP_INFO( get_logger(), "The node has the following attributes:" );
+  if ( input_ == input_remapped ) {
+    RCLCPP_INFO_STREAM( get_logger(), "  input:                  " << input_ );
+  } else {
+    RCLCPP_INFO_STREAM( get_logger(), "  input remapped to:      " << input_remapped );
+  }
+  if ( output_ == output_remapped ) {
+    RCLCPP_INFO_STREAM( get_logger(), "  output:                 " << output_ );
+  } else {
+    RCLCPP_INFO_STREAM( get_logger(), "  output remapped to:        " << output_remapped );
+  }
+  RCLCPP_INFO_STREAM( get_logger(), "  elimination_method:     " << elimination_method_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  elimination_quantifier: " << elimination_quantifier_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  point_fraction:         " << point_fraction_ );
+  RCLCPP_INFO_STREAM( get_logger(), "  point_count:            " << point_count_ );
 }
 
 } // namespace hector_pointcloud_decimator
