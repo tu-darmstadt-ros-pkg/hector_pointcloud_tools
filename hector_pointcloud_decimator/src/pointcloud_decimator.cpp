@@ -95,7 +95,7 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
   output.data.reserve( point_count * point_step );
 
   if ( elimination_method_ == "random" ) {
-    // Choose randomly which points to include. This will likely not match the chosen fraction/count exactly
+    // Choose points randomly. This will usually not match the chosen fraction/count exactly
     for ( size_t point = 0; point < input_size; ++point ) {
       const size_t source_index = point * point_step;
 
@@ -103,18 +103,13 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
         continue;
 
       std::copy_n( msg.data.begin() + source_index, point_step, std::back_inserter( output.data ) );
-      // for ( size_t e = 0; e < point_step; ++e ) {
-      //   output.data.push_back( msg.data[source_index + e] );
-      // }
     }
   } else {
+    // Choose points with roughly equal distance. This could theoretically cause artifacts
     for ( size_t point = 0; point < point_count; ++point ) {
       const size_t source_index = static_cast<size_t>( point / point_fraction ) * point_step;
 
       std::copy_n( msg.data.begin() + source_index, point_step, std::back_inserter( output.data ) );
-      // for ( size_t e = 0; e < point_step; ++e ) {
-      //   output.data.push_back( msg.data[source_index + e] );
-      // }
     }
   }
 
