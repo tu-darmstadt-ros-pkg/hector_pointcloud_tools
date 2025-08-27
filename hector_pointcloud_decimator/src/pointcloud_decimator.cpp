@@ -44,7 +44,9 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
       "point_count", std::ref( point_count_ ), "The total number of points to keep",
       hector::ParameterOptions<int>().onValidate( []( const int &value ) { return value >= 0; } ) );
 
-  pct_ = std::make_unique<point_cloud_transport::PointCloudTransport>( shared_from_this() );
+  pct_ = std::make_unique<point_cloud_transport::PointCloudTransport>(
+      std::shared_ptr<PointcloudDecimator>( this,
+                                            []( PointcloudDecimator * ) { /* no-op deleter */ } ) );
   node_topics_interface_ = get_node_topics_interface();
 
   printNodeStatus();
