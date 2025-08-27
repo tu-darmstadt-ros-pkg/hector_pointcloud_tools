@@ -36,7 +36,7 @@ ros2 launch hector_pointcloud_accumulator pointcloud_accumulator.launch.yaml res
 
 | Parameter          | Type           | Default                    | Description                                                                                                                     |
 | ------------------ | -------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `resolution`       | `double`       | `0.025`                      | Resolution of the voxel filter                                                                                                |
+| `resolution`       | `double`       | `0.025`                    | Resolution of the voxel filter                                                                                                  |
 | `frame`            | `string`       | `"map"`                    | The frame into which all pointclouds are accumulated                                                                            |
 | `publish_rate`     | `double`       | `0.2`                      | Frequency at which the node publishes on `/cloud_out`                                                                           |
 | `aggregation_mode` | `string`       | `"average"`                | Controls how points within the same voxel are integrated. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
@@ -99,3 +99,46 @@ ros2 run hector_pointcloud_io pointcloud_saver --ros-args -p topic:=/pointcloud_
 
 All these parameters can be reconfigured.
 When the service is called using the `std_srvs::srv::Trigger`, it will wait for a message on the given topic and save it to the given folder with the filename `<prefix>.<timestamp>.<output_format>`.
+
+## hector_pointcloud_decimator
+
+Contains the `pointcloud_decimator` node.
+
+### `pointcloud_decimator`
+
+This node reduces the pount count of a pointcloud and publishes them in a compressed format via [point_cloud_transport](https://github.com/ros-perception/point_cloud_transport).
+The desired ammount of points can be specified as either a fraction of the original point count or as a total number of points.
+There are currently two methods to decimate a pointcloud:\
+`random` picks points randomly from the pointcloud.
+This method should prevent noticeable patterns in the pointcloud, but will likely not match the desired point count/fraction precisely.\
+`count` picks points equally from the whole range of the pointcloud. This method should is the more performant and will match the desired point count/fraction.
+
+#### Subscribed Topics
+
+| Topic         | Type                          | Description                 |
+| ------------- | ----------------------------- | --------------------------- |
+| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+
+
+#### Published Topics
+
+| Topic                   | Type                    | Description                            |
+| ----------------------- | ----------------------- | -------------------------------------- |
+| `/pointcloud_decimated` | `point_cloud_transport` | Output topic for decimated pointclouds |
+
+#### Services
+
+**None**
+
+#### Actions
+
+**None**
+
+#### Parameters
+
+| Parameter                | Type          | Default               | Description                                                                |
+| ------------------------ | ------------- | --------------------- | -------------------------------------------------------------------------- |
+| `elimination_method`     | `std::string` | `"count"`             | How the pointcloud is decimated (`random`/`count`)                         |
+| `elimination_quantifier` | `std::string` | `"fraction"`          | How the amount of points to be kept is quantified (`fraction`/`count`)     |
+| `point_fraction`         | `double`      | `0.1`                 | Fraction of points to keep (used if `elimination_quantifier = "fraction"`) |
+| `point_count`            | `int`         | `1000`                | Number of points to keep (used if `elimination_quantifier = "count"`)      |

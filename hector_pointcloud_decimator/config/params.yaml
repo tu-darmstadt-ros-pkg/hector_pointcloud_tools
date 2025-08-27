@@ -1,0 +1,7 @@
+/**:
+  ros__parameters:
+    name: "pointcloud_decimator"
+    elimination_method: "count"
+    elimination_quantifier: "fraction"
+    point_fraction: 0.2
+    point_count: 1000

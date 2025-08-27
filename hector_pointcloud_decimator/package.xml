@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>hector_pointcloud_decimator</name>
+  <version>0.0.0</version>
+  <description>The pointcloud_decimator node can decimate pointclouds using different methods and to different degrees</description>
+
+  <maintainer email="finn.winter@stud.tu-darmstadt.de">Finn Winter</maintainer>
+  <license>MIT</license>
+  <author email="finn.winter@stud.tu-darmstadt.de">Finn Winter</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>hector_ros2_utils</build_depend>
+
+  <depend>point_cloud_transport</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

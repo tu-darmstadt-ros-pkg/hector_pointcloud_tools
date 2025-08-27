@@ -1,0 +1,37 @@
+%YAML 1.2
+---
+launch:
+- arg:
+    name: name
+    default: "pointcloud_decimator"
+    description: The name of the node
+- arg:
+    name: elimination_method
+    default: "count"
+    description: The method used to decimate the pointcloud
+- arg:
+    name: elimination_quantifier
+    default: "fraction"
+    description: How the amount of points to be eliminated is quantified
+- arg:
+    name: point_fraction
+    default: "0.2"
+    description: The fraction of points to keep
+- arg:
+    name: point_count
+    default: "1000"
+    description: The number of points to keep
+- node:
+    pkg: hector_pointcloud_decimator
+    exec: pointcloud_decimator
+    name: $(var name)
+    output: screen
+    param:
+      - name: elimination_method
+        value: $(var elimination_method)
+      - name: elimination_quantifier
+        value: $(var elimination_quantifier)
+      - name: point_fraction
+        value: $(var point_fraction)
+      - name: point_count
+        value: $(var point_count)
