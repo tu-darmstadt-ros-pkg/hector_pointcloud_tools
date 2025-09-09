@@ -13,10 +13,11 @@ namespace hector_pointcloud_accumulator
 PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double resolution,
                                                       const std::string &frame,
                                                       const rclcpp::Rate &publish_rate,
-                                                      const std::vector<std::string> &topics )
-    : frame_( frame ), resolution_( resolution ), tfBuffer( node.get_clock() ), tfListener( tfBuffer )
+                                                      const std::vector<std::string> &topics,
+                                                      size_t queue_size )
+    : frame_( frame ), resolution_( resolution ), max_queue_size_( queue_size ),
+      tfBuffer( node.get_clock() ), tfListener( tfBuffer )
 {
-
   reset_service_ = node.create_service<std_srvs::srv::Trigger>(
       "reset_pointcloud", [this]( std_srvs::srv::Trigger::Request::SharedPtr,
                                   std_srvs::srv::Trigger::Response::SharedPtr res ) {
@@ -33,11 +34,11 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
   for ( const auto &topic : topics ) {
     pointcloud_subscriptions_.emplace_back( node.create_subscription<sensor_msgs::msg::PointCloud2>(
         topic, 10,
-        [this]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { processPointcloud( msg ); } ) );
+        [this]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { onNewPointcloud( msg ); } ) );
   }
 
-  accumulated_publisher_ =
-      node.create_publisher<sensor_msgs::msg::PointCloud2>( "accumulated_pointcloud", 1 );
+  accumulated_publisher_ = node.create_publisher<sensor_msgs::msg::PointCloud2>(
+      "accumulated_pointcloud", rclcpp::QoS( 1 ).transient_local().reliable() );
   publish_timer_ = node.create_wall_timer( publish_rate.period(), [this]() { publishPointcloud(); } );
 
   accumulated_cloud_.header.frame_id = frame_;
@@ -59,21 +60,38 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
   accumulated_cloud_.point_step = 12;
   accumulated_cloud_.is_dense = false;
 
-  PCA_LOG_INFO(
-      "PointcloudAccumulator initialized with resolution %f and frame %s. Publishing every %fs.",
-      resolution_, frame_.c_str(), 1E9 / publish_rate.period().count() );
+  PCA_LOG_INFO( "PointcloudAccumulator initialized with resolution %f and max queue size %lu in "
+                "frame %s. Publishing every %fs.",
+                resolution_, max_queue_size_, frame_.c_str(), 1E9 / publish_rate.period().count() );
+
+  processing_thread_ = std::thread( &PointcloudAccumulatorBase::processQueue, this );
+}
+
+PointcloudAccumulatorBase::~PointcloudAccumulatorBase()
+{
+  shutting_down_ = true;
+  pointcloud_subscriptions_.clear();
+  publish_timer_.reset();
+  data_available.notify_all();
+  if ( processing_thread_.joinable() ) {
+    processing_thread_.join();
+  }
 }
 
 void PointcloudAccumulatorBase::setEnabled( bool enabled ) { enabled_ = enabled; }
 
 void PointcloudAccumulatorBase::reset()
 {
+  std::scoped_lock lock{ accumulated_pointcloud_mutex_, pointcloud_queue_mutex_ };
+  PCA_LOG_INFO( "Resetting accumulated pointcloud." );
+  pointcloud_queue_.clear();
   accumulated_cloud_.data.clear();
   accumulated_cloud_.width = 0;
 }
 
 void PointcloudAccumulatorBase::publishPointcloud()
 {
+  std::unique_lock lock( accumulated_pointcloud_mutex_ );
   if ( !updated_ ) {
     return;
   }
@@ -83,8 +101,43 @@ void PointcloudAccumulatorBase::publishPointcloud()
   PCA_LOG_INFO( "Published pointcloud with %d points. (%u new, %u processed, %lu total)",
                 accumulated_cloud_.width, accumulated_cloud_.width - count_last_published_,
                 count_last_processed_, count_total_processed_ );
+  if ( dropped_pointclouds_ > 0 ) {
+    PCA_LOG_WARN( "Dropped %u incoming pointclouds due to full queue.", dropped_pointclouds_ );
+    dropped_pointclouds_ = 0;
+  }
   count_last_published_ = accumulated_cloud_.width;
   count_last_processed_ = 0;
+}
+
+void PointcloudAccumulatorBase::onNewPointcloud( const sensor_msgs::msg::PointCloud2::SharedPtr &msg )
+{
+  if ( !enabled_ ) {
+    return;
+  }
+  std::lock_guard lock( pointcloud_queue_mutex_ );
+  if ( max_queue_size_ != 0 && pointcloud_queue_.size() > max_queue_size_ ) {
+    pointcloud_queue_.pop_front();
+    ++dropped_pointclouds_;
+  }
+  pointcloud_queue_.push_back( msg );
+  data_available.notify_one();
+}
+
+void PointcloudAccumulatorBase::processQueue()
+{
+  while ( !shutting_down_ ) {
+    sensor_msgs::msg::PointCloud2::SharedPtr msg;
+    {
+      std::unique_lock lock( pointcloud_queue_mutex_ );
+      if ( pointcloud_queue_.empty() ) {
+        data_available.wait( lock );
+        continue;
+      }
+      msg = pointcloud_queue_.front();
+      pointcloud_queue_.pop_front();
+    }
+    processPointcloud( msg );
+  }
 }
 
 namespace
@@ -145,13 +198,13 @@ template<typename T>
 void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
     const sensor_msgs::msg::PointCloud2::SharedPtr &msg )
 {
-  if ( !tfBuffer.canTransform( frame_, msg->header.frame_id, msg->header.stamp,
-                               rclcpp::Duration::from_seconds( 0.01 ) ) ) {
+  using namespace std::chrono_literals;
+  if ( !tfBuffer.canTransform( frame_, msg->header.frame_id, msg->header.stamp, 1s ) ) {
     PCA_LOG_WARN( "Can't transform from %s to %s!", msg->header.frame_id.c_str(), frame_.c_str() );
     return;
   }
-  geometry_msgs::msg::TransformStamped transform_msg = tfBuffer.lookupTransform(
-      frame_, msg->header.frame_id, msg->header.stamp, rclcpp::Duration::from_seconds( 0.01 ) );
+  geometry_msgs::msg::TransformStamped transform_msg =
+      tfBuffer.lookupTransform( frame_, msg->header.frame_id, msg->header.stamp, 10ms );
   const Eigen::Isometry3f transform = tf2::transformToEigen( transform_msg ).cast<float>();
 
   // When this is called, it was already checked that x, y, z fields exist
@@ -162,6 +215,9 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
     PCA_LOG_ERROR_ONCE( "Different data types for x, y, z fields are not supported." );
     return;
   }
+
+  // Lock pointcloud for modification
+  std::unique_lock lock( accumulated_pointcloud_mutex_ );
   // Add fields that are not in pointcloud already
   for ( const auto &field : msg->fields ) {
     if ( std::any_of( accumulated_cloud_.fields.begin(), accumulated_cloud_.fields.end(),

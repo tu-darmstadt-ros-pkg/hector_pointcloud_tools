@@ -14,9 +14,15 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   }
   declare_parameter<double>( "resolution", 0.1 );
   declare_parameter<std::string>( "frame", "map" );
+  declare_parameter<int>( "queue_size", 10 );
   declare_parameter<double>( "publish_rate", 1.0 );
   declare_parameter<std::string>( "aggregation_mode", "average" );
   double resolution = get_parameter_or( "resolution", 0.1 );
+  int queue_size = get_parameter_or( "queue_size", 10 );
+  if ( queue_size < 0 ) {
+    RCLCPP_ERROR( get_logger(), "Queue size was smaller than 0 which is not valid. I'm using 10." );
+    queue_size = 10;
+  }
   auto frame = get_parameter_or<std::string>( "frame", "map" );
   double rate = get_parameter_or( "publish_rate", 1.0 );
   auto aggregation_mode = get_parameter_or<std::string>( "aggregation_mode", "average" );
@@ -29,15 +35,15 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   if ( aggregation_mode == "average" ) {
     hector_pointcloud_accumulator_ =
         std::make_shared<PointcloudAccumulator<AggregationMode::AVERAGE>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics );
+            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else if ( aggregation_mode == "highest_z" ) {
     hector_pointcloud_accumulator_ =
         std::make_shared<PointcloudAccumulator<AggregationMode::HIGHEST_Z>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics );
+            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else if ( aggregation_mode == "closest_to_center" ) {
     hector_pointcloud_accumulator_ =
         std::make_shared<PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics );
+            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else {
     RCLCPP_ERROR( get_logger(), "Unknown aggregation mode '%s'", aggregation_mode.c_str() );
   }

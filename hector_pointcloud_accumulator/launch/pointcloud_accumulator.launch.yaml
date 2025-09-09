@@ -17,6 +17,9 @@ launch:
   - arg:
       name: out_topic
       default: "accumulated_pointcloud"
+  - arg:
+      name: use_sim_time
+      default: "false"
 
   - node:
       pkg: hector_pointcloud_accumulator
@@ -35,6 +38,8 @@ launch:
           value: $(var aggregation_mode)
         - name: topics
           value: $(var topics)
+        - name: use_sim_time
+          value: $(var use_sim_time)
       remap:
         - from: "cloud_out"
           to: "$(var out_topic)"
