@@ -15,7 +15,7 @@ launch:
       name: topics
       default: '["pointcloud"]'
   - arg:
-      name: out_topic
+      name: output_topic
       default: "accumulated_pointcloud"
   - arg:
       name: use_sim_time
@@ -41,5 +41,5 @@ launch:
         - name: use_sim_time
           value: $(var use_sim_time)
       remap:
-        - from: "cloud_out"
-          to: "$(var out_topic)"
+        - from: "accumulated_pointcloud"
+          to: "$(var output_topic)"
