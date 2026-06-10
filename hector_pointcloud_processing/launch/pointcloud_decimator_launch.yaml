@@ -22,7 +22,7 @@ launch:
     default: "1000"
     description: The number of points to keep
 - node:
-    pkg: hector_pointcloud_decimator
+    pkg: hector_pointcloud_processing
     exec: pointcloud_decimator
     name: $(var name)
     output: screen
