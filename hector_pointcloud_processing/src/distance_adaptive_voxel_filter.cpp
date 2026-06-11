@@ -40,8 +40,8 @@ bool validBandVoxelSizes( const std::vector<double> &v )
 } // namespace
 
 DistanceAdaptiveVoxelFilter::DistanceAdaptiveVoxelFilter( const rclcpp::NodeOptions &options )
-    : Node( "distance_adaptive_voxel_filter", options ), input_( "/pointcloud" ),
-      output_( "/pointcloud_filtered" ), band_distances_( { 5.0, 15.0, 30.0 } ),
+    : Node( "distance_adaptive_voxel_filter", options ), input_( "pointcloud" ),
+      output_( "pointcloud_filtered" ), band_distances_( { 5.0, 15.0, 30.0 } ),
       band_voxel_sizes_( { 0.05, 0.15, 0.4 } ), target_frame_( "" ), tf_prefix_( "" )
 {
   const auto rebuild_schedule = [this]( const std::vector<double> & ) {

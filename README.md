@@ -32,28 +32,29 @@ Contains nodes for accumulation and decimating of point clouds.
 Voxel-filtered pointcloud accumulator. You can choose if it should store a running average, the highest z or the point closest to the center for each voxel.
 
 Example:
+
 ```bash
 ros2 launch hector_pointcloud_accumulator pointcloud_accumulator.launch.yaml resolution:=0.025 frame:=map publish_rate:=0.2 aggregation_mode:=average topics:=["pointcloud1","pointcloud2"] output_topic:=accumulated_pointcloud
 ```
 
 #### Subscribed Topics
 
-| Topic         | Type                          | Description                                                          |
-| ------------- | ----------------------------- | -------------------------------------------------------------------- |
-| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Default input topic for pointclouds if parameter topics is not used. |
+| Topic        | Type                          | Description                                                          |
+| ------------ | ----------------------------- | -------------------------------------------------------------------- |
+| `pointcloud` | `sensor_msgs/msg/PointCloud2` | Default input topic for pointclouds if parameter topics is not used. |
 
 #### Published Topics
 
-| Topic                     | Type                          | Description                             |
-| ------------------------- | ----------------------------- | --------------------------------------- |
-| `/accumulated_pointcloud` | `sensor_msgs/msg/PointCloud2` | Output topic for accumulated pointcloud |
+| Topic                    | Type                          | Description                             |
+| ------------------------ | ----------------------------- | --------------------------------------- |
+| `accumulated_pointcloud` | `sensor_msgs/msg/PointCloud2` | Output topic for accumulated pointcloud |
 
 #### Services
 
-| Service              | Type                   | Description                          |
-| -------------------- | ---------------------- | ------------------------------------ |
-| `/enable_pointcloud` | `std_srvs/srv/SetBool` | Turn pointcloud processing on or off |
-| `/reset_pointcloud`  | `std_srvs/srv/Trigger` | Clear all accumulated data           |
+| Service             | Type                   | Description                          |
+| ------------------- | ---------------------- | ------------------------------------ |
+| `enable_pointcloud` | `std_srvs/srv/SetBool` | Turn pointcloud processing on or off |
+| `reset_pointcloud`  | `std_srvs/srv/Trigger` | Clear all accumulated data           |
 
 #### Parameters
 
@@ -77,16 +78,15 @@ This method should prevent noticeable patterns in the pointcloud, but will likel
 
 #### Subscribed Topics
 
-| Topic         | Type                          | Description                 |
-| ------------- | ----------------------------- | --------------------------- |
-| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
-
+| Topic        | Type                          | Description                 |
+| ------------ | ----------------------------- | --------------------------- |
+| `pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
 
 #### Published Topics
 
-| Topic                   | Type                    | Description                            |
-| ----------------------- | ----------------------- | -------------------------------------- |
-| `/pointcloud_decimated` | `point_cloud_transport` | Output topic for decimated pointclouds |
+| Topic                  | Type                    | Description                            |
+| ---------------------- | ----------------------- | -------------------------------------- |
+| `pointcloud_decimated` | `point_cloud_transport` | Output topic for decimated pointclouds |
 
 #### Services
 
@@ -98,12 +98,12 @@ This method should prevent noticeable patterns in the pointcloud, but will likel
 
 #### Parameters
 
-| Parameter                | Type          | Default               | Description                                                                |
-| ------------------------ | ------------- | --------------------- | -------------------------------------------------------------------------- |
-| `elimination_method`     | `std::string` | `"count"`             | How the pointcloud is decimated (`random`/`count`)                         |
-| `elimination_quantifier` | `std::string` | `"fraction"`          | How the amount of points to be kept is quantified (`fraction`/`count`)     |
-| `point_fraction`         | `double`      | `0.1`                 | Fraction of points to keep (used if `elimination_quantifier = "fraction"`) |
-| `point_count`            | `int`         | `1000`                | Number of points to keep (used if `elimination_quantifier = "count"`)      |
+| Parameter                | Type          | Default      | Description                                                                |
+| ------------------------ | ------------- | ------------ | -------------------------------------------------------------------------- |
+| `elimination_method`     | `std::string` | `"count"`    | How the pointcloud is decimated (`random`/`count`)                         |
+| `elimination_quantifier` | `std::string` | `"fraction"` | How the amount of points to be kept is quantified (`fraction`/`count`)     |
+| `point_fraction`         | `double`      | `0.1`        | Fraction of points to keep (used if `elimination_quantifier = "fraction"`) |
+| `point_count`            | `int`         | `1000`       | Number of points to keep (used if `elimination_quantifier = "count"`)      |
 
 ## hector_pointcloud_io
 
@@ -117,6 +117,7 @@ Supported formats: `ifs`, `pcd`, `ply`, `vtk`
 Continuously publishes the selected pointcloud on the selected topic.
 
 Example:
+
 ```bash
 ros2 run hector_pointcloud_io load_pointcloud /pointcloud_topic path_to_file.pcd
 ```
@@ -126,6 +127,7 @@ ros2 run hector_pointcloud_io load_pointcloud /pointcloud_topic path_to_file.pcd
 Stores the first pointcloud received on the selected topic.
 
 Example:
+
 ```bash
 ros2 run hector_pointcloud_io save_pointcloud /pointcloud_topic path_to_file.ply
 ```
@@ -155,13 +157,13 @@ ros2 run hector_pointcloud_io save_pointcloud /pointcloud_topic path_to_file.ply
 | `timeout_ms`             | `int`    | Timeout for waiting for pointclouds in ms.                                        |
 
 Example:
+
 ```bash
 ros2 run hector_pointcloud_io pointcloud_saver --ros-args -p topic:=/pointcloud_topic -p output_folder:=/path/to/save/folder -p output_format:=vtk -p output_filename_prefix:=my-pointcloud-prefix
 ```
 
 All these parameters can be reconfigured.
 When the service is called using the `std_srvs::srv::Trigger`, it will wait for a message on the given topic and save it to the given folder with the filename `<prefix>.<timestamp>.<output_format>`.
-
 
 ## hector_pointcloud_processing
 
@@ -177,15 +179,15 @@ ros2 launch hector_pointcloud_processing voxel_filter_launch.yaml voxel_size:=0.
 
 #### Subscribed Topics
 
-| Topic         | Type                          | Description                 |
-| ------------- | ----------------------------- | --------------------------- |
-| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+| Topic        | Type                          | Description                 |
+| ------------ | ----------------------------- | --------------------------- |
+| `pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
 
 #### Published Topics
 
-| Topic                  | Type                    | Description                           |
-| ---------------------- | ----------------------- | ------------------------------------- |
-| `/pointcloud_filtered` | `point_cloud_transport` | Output topic for filtered pointclouds |
+| Topic                 | Type                    | Description                           |
+| --------------------- | ----------------------- | ------------------------------------- |
+| `pointcloud_filtered` | `point_cloud_transport` | Output topic for filtered pointclouds |
 
 #### Parameters
 
@@ -208,22 +210,22 @@ ros2 launch hector_pointcloud_processing distance_adaptive_voxel_filter_launch.y
 
 #### Subscribed Topics
 
-| Topic         | Type                          | Description                 |
-| ------------- | ----------------------------- | --------------------------- |
-| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+| Topic        | Type                          | Description                 |
+| ------------ | ----------------------------- | --------------------------- |
+| `pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
 
 #### Published Topics
 
-| Topic                  | Type                    | Description                           |
-| ---------------------- | ----------------------- | ------------------------------------- |
-| `/pointcloud_filtered` | `point_cloud_transport` | Output topic for filtered pointclouds |
+| Topic                 | Type                    | Description                           |
+| --------------------- | ----------------------- | ------------------------------------- |
+| `pointcloud_filtered` | `point_cloud_transport` | Output topic for filtered pointclouds |
 
 #### Parameters
 
-| Parameter            | Type                       | Default             | Description                                                                         |
-| -------------------- | -------------------------- | ------------------- | ----------------------------------------------------------------------------------- |
-| `band_distances`     | `std::vector<double>`      | `[5.0, 15.0, 30.0]` | Ascending upper distance bounds (m); paired by index with sizes                     |
-| `band_voxel_sizes`   | `std::vector<double>`      | `[0.05, 0.15, 0.4]` | Voxel edge length (m) per band; paired by index with distances                      |
-| `target_frame`       | `std::string`              | `""`                | Frame the point position is expressed in for binning; empty uses raw xyz            |
-| `tf_prefix`          | `std::string`              | `""`                | Prefix prepended to the frame id before publishing                                  |
-| `keep_fields`        | `std::vector<std::string>` | `[]`                | Whitelist of fields to copy to the output; empty keeps all fields                   |
+| Parameter          | Type                       | Default             | Description                                                              |
+| ------------------ | -------------------------- | ------------------- | ------------------------------------------------------------------------ |
+| `band_distances`   | `std::vector<double>`      | `[5.0, 15.0, 30.0]` | Ascending upper distance bounds (m); paired by index with sizes          |
+| `band_voxel_sizes` | `std::vector<double>`      | `[0.05, 0.15, 0.4]` | Voxel edge length (m) per band; paired by index with distances           |
+| `target_frame`     | `std::string`              | `""`                | Frame the point position is expressed in for binning; empty uses raw xyz |
+| `tf_prefix`        | `std::string`              | `""`                | Prefix prepended to the frame id before publishing                       |
+| `keep_fields`      | `std::vector<std::string>` | `[]`                | Whitelist of fields to copy to the output; empty keeps all fields        |

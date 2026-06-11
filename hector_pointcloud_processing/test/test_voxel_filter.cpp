@@ -71,9 +71,9 @@ sensor_msgs::msg::PointCloud2::SharedPtr runFilter( const rclcpp::NodeOptions &o
 
   sensor_msgs::msg::PointCloud2::SharedPtr received;
   auto sub = helper->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "/pointcloud_filtered", rclcpp::QoS( 10 ).best_effort(),
+      "pointcloud_filtered", rclcpp::QoS( 10 ).best_effort(),
       [&received]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { received = msg; } );
-  auto pub = helper->create_publisher<sensor_msgs::msg::PointCloud2>( "/pointcloud", 10 );
+  auto pub = helper->create_publisher<sensor_msgs::msg::PointCloud2>( "pointcloud", 10 );
 
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node( filter );

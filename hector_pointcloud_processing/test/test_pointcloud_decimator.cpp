@@ -69,9 +69,9 @@ sensor_msgs::msg::PointCloud2::SharedPtr runDecimator( const rclcpp::NodeOptions
   // subscription must match it - otherwise it is never counted and the lazy subscriber that
   // gates the decimator's input never starts.
   auto sub = helper->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "/pointcloud_decimated", rclcpp::QoS( 10 ).best_effort(),
+      "pointcloud_decimated", rclcpp::QoS( 10 ).best_effort(),
       [&received]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { received = msg; } );
-  auto pub = helper->create_publisher<sensor_msgs::msg::PointCloud2>( "/pointcloud", 10 );
+  auto pub = helper->create_publisher<sensor_msgs::msg::PointCloud2>( "pointcloud", 10 );
 
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node( decimator );

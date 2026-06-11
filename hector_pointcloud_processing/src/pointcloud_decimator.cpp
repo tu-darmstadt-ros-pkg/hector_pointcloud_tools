@@ -9,8 +9,8 @@ namespace hector_pointcloud_processing
 {
 
 PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
-    : Node( "pointcloud_decimator", options ), input_( "/pointcloud" ),
-      output_( "/pointcloud_decimated" ), elimination_method_( "count" ),
+    : Node( "pointcloud_decimator", options ), input_( "pointcloud" ),
+      output_( "pointcloud_decimated" ), elimination_method_( "count" ),
       elimination_quantifier_( "fraction" ), point_fraction_( 0.1 ), point_count_( 1000 )
 {
   // Parameters

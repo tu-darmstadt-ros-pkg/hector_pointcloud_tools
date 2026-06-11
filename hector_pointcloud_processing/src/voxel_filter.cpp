@@ -7,7 +7,7 @@ namespace hector_pointcloud_processing
 {
 
 VoxelFilter::VoxelFilter( const rclcpp::NodeOptions &options )
-    : Node( "voxel_filter", options ), input_( "/pointcloud" ), output_( "/pointcloud_filtered" ),
+    : Node( "voxel_filter", options ), input_( "pointcloud" ), output_( "pointcloud_filtered" ),
       voxel_size_( 0.1 ), max_distance_( 30.0 ), tf_prefix_( "" )
 {
   declare_reconfigurable_parameter( "voxel_size", std::ref( voxel_size_ ),
