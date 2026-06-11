@@ -2,6 +2,27 @@
 
 Some simple packages for common pointcloud needs
 
+## Overview
+
+Components are also available as standalone executables of the same name.
+
+**hector_pointcloud_processing**:
+
+| Component                                                           | Class                                                       | Description                                                   |
+| ------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
+| [`pointcloud_accumulator`](#pointcloud_accumulator)                 | `hector_pointcloud_processing::PointcloudAccumulatorNode`   | Voxel-filtered accumulation of multiple clouds into one frame |
+| [`pointcloud_decimator`](#pointcloud_decimator)                     | `hector_pointcloud_processing::PointcloudDecimator`         | Reduces point count and republishes via point_cloud_transport |
+| [`voxel_filter`](#voxel_filter)                                     | `hector_pointcloud_processing::VoxelFilter`                 | Uniform voxel grid downsampling                               |
+| [`distance_adaptive_voxel_filter`](#distance_adaptive_voxel_filter) | `hector_pointcloud_processing::DistanceAdaptiveVoxelFilter` | Voxel grid downsampling with voxel size growing by distance   |
+
+**hector_pointcloud_io**:
+
+| Component                               | Class                                   | Description                                        |
+| --------------------------------------- | --------------------------------------- | -------------------------------------------------- |
+| [`pointcloud_saver`](#pointcloud_saver) | `hector_pointcloud_io::PointcloudSaver` | Saves a cloud from a topic to file on service call |
+| [`load_pointcloud`](#load_pointcloud)   | —                                       | Publishes a cloud loaded from a file               |
+| [`save_pointcloud`](#save_pointcloud)   | —                                       | Saves the first cloud received on a topic to file  |
+
 ## hector_pointcloud_processing
 
 Contains nodes for accumulation and decimating of point clouds.
@@ -140,3 +161,69 @@ ros2 run hector_pointcloud_io pointcloud_saver --ros-args -p topic:=/pointcloud_
 
 All these parameters can be reconfigured.
 When the service is called using the `std_srvs::srv::Trigger`, it will wait for a message on the given topic and save it to the given folder with the filename `<prefix>.<timestamp>.<output_format>`.
+
+
+## hector_pointcloud_processing
+
+Contains the `voxel_filter` and `distance_adaptive_voxel_filter` nodes.
+
+### `voxel_filter`
+
+Uniform voxel grid filter. A fixed-size voxel grid is overlaid on the cloud and the first input point falling into each voxel is kept and copied verbatim, so all fields are preserved. Points farther than `max_distance` from the cloud origin (the sensor/robot) are dropped first. The output is published in a compressed format via [point_cloud_transport](https://github.com/ros-perception/point_cloud_transport).
+
+```bash
+ros2 launch hector_pointcloud_processing voxel_filter_launch.yaml voxel_size:=0.1 max_distance:=30.0
+```
+
+#### Subscribed Topics
+
+| Topic         | Type                          | Description                 |
+| ------------- | ----------------------------- | --------------------------- |
+| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+
+#### Published Topics
+
+| Topic                  | Type                    | Description                           |
+| ---------------------- | ----------------------- | ------------------------------------- |
+| `/pointcloud_filtered` | `point_cloud_transport` | Output topic for filtered pointclouds |
+
+#### Parameters
+
+| Parameter      | Type                       | Default | Description                                                       |
+| -------------- | -------------------------- | ------- | ----------------------------------------------------------------- |
+| `voxel_size`   | `double`                   | `0.1`   | Edge length (m) of each voxel                                     |
+| `max_distance` | `double`                   | `30.0`  | Points farther than this (m) from the cloud origin are dropped    |
+| `tf_prefix`    | `std::string`              | `""`    | Prefix prepended to the frame id before publishing                |
+| `keep_fields`  | `std::vector<std::string>` | `[]`    | Whitelist of fields to copy to the output; empty keeps all fields |
+
+### `distance_adaptive_voxel_filter`
+
+Like `voxel_filter`, but the voxel size grows with distance so points near the robot are filtered finely and distant points coarsely. The schedule is given as distance bands via two equal-length lists: `band_distances` (ascending upper bounds, m) and `band_voxel_sizes` (edge length, m), paired by index. A point at range `r` uses the voxel size of the first band whose distance is `>= r`; points farther than the last band's distance are dropped. As above, the first point per voxel is kept verbatim.
+
+With `target_frame` set, the distance and binning are evaluated in that frame (via tf), e.g. the robot body frame when the cloud is published in a sensor or odom frame. The published points stay in the input frame; only the bin assignment changes.
+
+```bash
+ros2 launch hector_pointcloud_processing distance_adaptive_voxel_filter_launch.yaml band_distances:="[5.0, 15.0, 30.0]" band_voxel_sizes:="[0.05, 0.15, 0.4]"
+```
+
+#### Subscribed Topics
+
+| Topic         | Type                          | Description                 |
+| ------------- | ----------------------------- | --------------------------- |
+| `/pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+
+#### Published Topics
+
+| Topic                  | Type                    | Description                           |
+| ---------------------- | ----------------------- | ------------------------------------- |
+| `/pointcloud_filtered` | `point_cloud_transport` | Output topic for filtered pointclouds |
+
+#### Parameters
+
+| Parameter            | Type                       | Default             | Description                                                                         |
+| -------------------- | -------------------------- | ------------------- | ----------------------------------------------------------------------------------- |
+| `band_distances`     | `std::vector<double>`      | `[5.0, 15.0, 30.0]` | Ascending upper distance bounds (m); paired by index with sizes                     |
+| `band_voxel_sizes`   | `std::vector<double>`      | `[0.05, 0.15, 0.4]` | Voxel edge length (m) per band; paired by index with distances                      |
+| `target_frame`       | `std::string`              | `""`                | Frame the point position is expressed in for binning; empty uses raw xyz            |
+| `tf_prefix`          | `std::string`              | `""`                | Prefix prepended to the frame id before publishing                                  |
+| `keep_fields`        | `std::vector<std::string>` | `[]`                | Whitelist of fields to copy to the output; empty keeps all fields                   |

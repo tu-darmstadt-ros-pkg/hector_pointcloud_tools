@@ -1,0 +1,38 @@
+%YAML 1.2
+---
+launch:
+- arg:
+    name: name
+    default: "voxel_filter"
+    description: The name of the node
+- arg:
+    name: voxel_size
+    default: "0.1"
+    description: Edge length (m) of each voxel
+- arg:
+    name: max_distance
+    default: "30.0"
+    description: Points farther than this (m) from the cloud origin are dropped
+- arg:
+    name: tf_prefix
+    default: ""
+    description: Prefix prepended to frame id when publishing filtered cloud
+- arg:
+    name: keep_fields
+    default: '[""]'
+    description: Whitelist of fields as YAML list of quoted names, e.g. ["x","y","z"]; [""] keeps all fields. Quotes are required ([x, y, z] turns y into a bool)
+- node:
+    pkg: hector_pointcloud_processing
+    exec: voxel_filter
+    name: $(var name)
+    output: screen
+    # keep_fields goes through -p instead of param: the params file launch generates drops the
+    # quotes around "y", which rcl's YAML 1.1 parser then reads as a bool (mixed-type array error).
+    ros_args: -p keep_fields:=$(var keep_fields)
+    param:
+      - name: voxel_size
+        value: $(var voxel_size)
+      - name: max_distance
+        value: $(var max_distance)
+      - name: tf_prefix
+        value: $(var tf_prefix)

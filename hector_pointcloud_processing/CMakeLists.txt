@@ -17,15 +17,22 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(tf2_eigen REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(point_cloud_transport REQUIRED)
 
-add_library(hector_pointcloud_processing SHARED
-    include/hector_pointcloud_processing/pointcloud_accumulator.hpp
-    include/hector_pointcloud_processing/pointcloud_decimator.hpp
-    src/nodes/pointcloud_accumulator_node.hpp
-    src/nodes/pointcloud_accumulator_node.cpp
-    src/pointcloud_accumulator.cpp
-    src/pointcloud_decimator.cpp)
+add_library(
+  hector_pointcloud_processing SHARED
+  include/hector_pointcloud_processing/pointcloud_accumulator.hpp
+  include/hector_pointcloud_processing/pointcloud_decimator.hpp
+  include/hector_pointcloud_processing/voxel_common.hpp
+  include/hector_pointcloud_processing/voxel_filter.hpp
+  include/hector_pointcloud_processing/distance_adaptive_voxel_filter.hpp
+  src/nodes/pointcloud_accumulator_node.hpp
+  src/nodes/pointcloud_accumulator_node.cpp
+  src/pointcloud_accumulator.cpp
+  src/pointcloud_decimator.cpp
+  src/voxel_filter.cpp
+  src/distance_adaptive_voxel_filter.cpp)
 
 target_include_directories(
   hector_pointcloud_processing
@@ -41,6 +48,7 @@ ament_target_dependencies(
   std_srvs
   geometry_msgs
   tf2_eigen
+  tf2_ros
   point_cloud_transport)
 
 rclcpp_components_register_node(
@@ -53,6 +61,15 @@ rclcpp_components_register_node(
   "hector_pointcloud_processing::PointcloudDecimator" EXECUTABLE
   pointcloud_decimator)
 
+rclcpp_components_register_node(
+  hector_pointcloud_processing PLUGIN
+  "hector_pointcloud_processing::VoxelFilter" EXECUTABLE voxel_filter)
+
+rclcpp_components_register_node(
+  hector_pointcloud_processing PLUGIN
+  "hector_pointcloud_processing::DistanceAdaptiveVoxelFilter" EXECUTABLE
+  distance_adaptive_voxel_filter)
+
 ament_export_targets(export_hector_pointcloud_processing)
 install(
   TARGETS hector_pointcloud_processing
@@ -62,6 +79,32 @@ install(
   RUNTIME DESTINATION bin)
 
 install(DIRECTORY include/ DESTINATION include/)
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  # Each test brings its own main (rclcpp::init/shutdown), so skip linking
+  # gtest_main.
+  ament_add_gtest(
+    test_pointcloud_accumulator test/test_pointcloud_accumulator.cpp
+    SKIP_LINKING_MAIN_LIBRARIES)
+  target_link_libraries(test_pointcloud_accumulator
+                        hector_pointcloud_processing)
+
+  ament_add_gtest(test_pointcloud_decimator test/test_pointcloud_decimator.cpp
+                  SKIP_LINKING_MAIN_LIBRARIES)
+  target_link_libraries(test_pointcloud_decimator hector_pointcloud_processing)
+
+  ament_add_gtest(test_voxel_filter test/test_voxel_filter.cpp
+                  SKIP_LINKING_MAIN_LIBRARIES)
+  target_link_libraries(test_voxel_filter hector_pointcloud_processing)
+
+  ament_add_gtest(
+    test_distance_adaptive_voxel_filter
+    test/test_distance_adaptive_voxel_filter.cpp SKIP_LINKING_MAIN_LIBRARIES)
+  target_link_libraries(test_distance_adaptive_voxel_filter
+                        hector_pointcloud_processing)
+endif()
 
 install(
   DIRECTORY config launch

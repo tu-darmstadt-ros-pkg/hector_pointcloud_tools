@@ -1,0 +1,44 @@
+%YAML 1.2
+---
+launch:
+- arg:
+    name: name
+    default: "distance_adaptive_voxel_filter"
+    description: The name of the node
+- arg:
+    name: band_distances
+    default: "[2.0, 4.0, 10.0]"
+    description: Ascending upper distance bounds (m); paired by index with band_voxel_sizes
+- arg:
+    name: band_voxel_sizes
+    default: "[0.2, 0.5, 1.0]"
+    description: Voxel edge length (m) per band; paired by index with band_distances
+- arg:
+    name: target_frame
+    default: ""
+    description: Frame to express the point position in for binning; empty uses the raw point xyz
+- arg:
+    name: tf_prefix
+    default: ""
+    description: Prefix prepended to frame id when publishing filtered cloud
+- arg:
+    name: keep_fields
+    default: '[""]'
+    description: Whitelist of fields as YAML list of quoted names, e.g. ["x","y","z"]; [""] keeps all fields. Quotes are required ([x, y, z] turns y into a bool)
+- node:
+    pkg: hector_pointcloud_processing
+    exec: distance_adaptive_voxel_filter
+    name: $(var name)
+    output: screen
+    # keep_fields goes through -p instead of param: the params file launch generates drops the
+    # quotes around "y", which rcl's YAML 1.1 parser then reads as a bool (mixed-type array error).
+    ros_args: -p keep_fields:=$(var keep_fields)
+    param:
+      - name: band_distances
+        value: $(var band_distances)
+      - name: band_voxel_sizes
+        value: $(var band_voxel_sizes)
+      - name: target_frame
+        value: $(var target_frame)
+      - name: tf_prefix
+        value: $(var tf_prefix)
