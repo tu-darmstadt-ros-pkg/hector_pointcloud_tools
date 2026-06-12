@@ -74,6 +74,7 @@ class ParameterSubscription
 {
 public:
   ParameterSubscription() = default;
+
   ParameterSubscription(
       rclcpp::Parameter parameter,
       rclcpp::node_interfaces::PreSetParametersCallbackHandle::SharedPtr pre_set_callback,
@@ -88,12 +89,15 @@ public:
         update_value_callback( std::move( update_value_callback ) ), valid_( true )
   {
   }
+
   ParameterSubscription( const ParameterSubscription & ) = delete;
+
   ParameterSubscription( ParameterSubscription &&other ) { *this = std::move( other ); }
 
   bool isValid() const { return valid_; }
 
   ParameterSubscription &operator=( const ParameterSubscription & ) = delete;
+
   ParameterSubscription &operator=( ParameterSubscription &&other )
   {
     if ( this == &other )
@@ -318,7 +322,6 @@ template<typename ParameterT, typename NodeT>
 #ifndef HECTOR_ROS2_UTILS_NODE_HPP
 #define HECTOR_ROS2_UTILS_NODE_HPP
 
-
 namespace hector
 {
 
@@ -381,12 +384,11 @@ private:
 #ifndef HECTOR_ROS2_UTILS_LIFECYCLE_NODE_HPP
 #define HECTOR_ROS2_UTILS_LIFECYCLE_NODE_HPP
 
-
 // rclcpp_lifecycle is an optional dependency: the LifecycleNode helper is only available when the
 // rclcpp_lifecycle headers are present. This lets the single-header export be used in projects that
 // do not have rclcpp_lifecycle available.
 #if __has_include( <rclcpp_lifecycle/lifecycle_node.hpp> )
-  #include <rclcpp_lifecycle/lifecycle_node.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 namespace hector
 {

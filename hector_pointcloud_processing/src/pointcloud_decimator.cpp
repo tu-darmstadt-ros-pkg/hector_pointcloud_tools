@@ -56,7 +56,8 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
 void PointcloudDecimator::setup()
 {
   // publisher for publishing outgoing messages
-  pointcloud_publisher_ = pct_->advertise( output_, 10 );
+  pointcloud_publisher_ =
+      pct_->advertise( output_, rclcpp::QoS( 1 ).reliable().get_rmw_qos_profile() );
 
   check_subscribers_timer_ =
       create_wall_timer( std::chrono::milliseconds( 100 ),

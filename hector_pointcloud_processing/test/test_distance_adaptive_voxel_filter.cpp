@@ -172,6 +172,18 @@ TEST( DistanceAdaptiveVoxelFilterTest, StripsNonWhitelistedFields )
   for ( const auto &field : output->fields ) EXPECT_NE( field.name, "intensity" );
 }
 
+TEST( DistanceAdaptiveVoxelFilterTest, IgnoresBlankKeepFieldNames )
+{
+  // Launch files pass [""] to express "keep all fields" since rcl cannot represent an empty
+  // string array override; blank names must not be treated as a (non-matching) whitelist.
+  rclcpp::NodeOptions options = defaultBands();
+  options.append_parameter_override( "keep_fields", std::vector<std::string>{ "" } );
+
+  auto output = runFilter( options, makeCloud( { { 5.0f, 0, 0 } }, /*with_intensity=*/true ) );
+  ASSERT_NE( output, nullptr ) << "Did not receive filtered cloud within timeout";
+  EXPECT_EQ( output->fields.size(), 4u );
+}
+
 } // namespace
 
 int main( int argc, char **argv )

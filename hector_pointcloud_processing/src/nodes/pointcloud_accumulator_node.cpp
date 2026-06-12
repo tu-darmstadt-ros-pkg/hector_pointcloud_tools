@@ -33,17 +33,14 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
 
   using hector_pointcloud_processing::PointcloudAccumulator;
   if ( aggregation_mode == "average" ) {
-    accumulator_ =
-        std::make_shared<PointcloudAccumulator<AggregationMode::AVERAGE>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+    accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::AVERAGE>>(
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else if ( aggregation_mode == "highest_z" ) {
-    accumulator_ =
-        std::make_shared<PointcloudAccumulator<AggregationMode::HIGHEST_Z>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+    accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::HIGHEST_Z>>(
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else if ( aggregation_mode == "closest_to_center" ) {
-    accumulator_ =
-        std::make_shared<PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+    accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>>(
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else {
     RCLCPP_ERROR( get_logger(), "Unknown aggregation mode '%s'", aggregation_mode.c_str() );
   }

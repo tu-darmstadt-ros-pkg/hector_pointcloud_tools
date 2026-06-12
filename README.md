@@ -69,12 +69,12 @@ ros2 launch hector_pointcloud_accumulator pointcloud_accumulator.launch.yaml res
 
 ### `pointcloud_decimator`
 
-This node reduces the pount count of a pointcloud and publishes them in a compressed format via [point_cloud_transport](https://github.com/ros-perception/point_cloud_transport).
-The desired ammount of points can be specified as either a fraction of the original point count or as a total number of points.
+This node reduces the point count of a pointcloud and publishes them in a compressed format via [point_cloud_transport](https://github.com/ros-perception/point_cloud_transport).
+The desired ammount of points can be specified as either a fraction of the original point count or as a total number of points.\
 There are currently two methods to decimate a pointcloud:\
 `random` picks points randomly from the pointcloud.
 This method should prevent noticeable patterns in the pointcloud, but will likely not match the desired point count/fraction precisely.\
-`count` picks points equally from the whole range of the pointcloud. This method should is the more performant and will match the desired point count/fraction.
+`count` picks points equally from the whole range of the pointcloud. This method is the more performant and will match the desired point count/fraction.
 
 #### Subscribed Topics
 
@@ -174,7 +174,7 @@ Contains the `voxel_filter` and `distance_adaptive_voxel_filter` nodes.
 Uniform voxel grid filter. A fixed-size voxel grid is overlaid on the cloud and the first input point falling into each voxel is kept and copied verbatim, so all fields are preserved. Points farther than `max_distance` from the cloud origin (the sensor/robot) are dropped first. The output is published in a compressed format via [point_cloud_transport](https://github.com/ros-perception/point_cloud_transport).
 
 ```bash
-ros2 launch hector_pointcloud_processing voxel_filter_launch.yaml voxel_size:=0.1 max_distance:=30.0
+ros2 launch hector_pointcloud_processing voxel_filter.launch.yaml voxel_size:=0.1 max_distance:=30.0
 ```
 
 #### Subscribed Topics
@@ -205,7 +205,7 @@ Like `voxel_filter`, but the voxel size grows with distance so points near the r
 With `target_frame` set, the distance and binning are evaluated in that frame (via tf), e.g. the robot body frame when the cloud is published in a sensor or odom frame. The published points stay in the input frame; only the bin assignment changes.
 
 ```bash
-ros2 launch hector_pointcloud_processing distance_adaptive_voxel_filter_launch.yaml band_distances:="[5.0, 15.0, 30.0]" band_voxel_sizes:="[0.05, 0.15, 0.4]"
+ros2 launch hector_pointcloud_processing distance_adaptive_voxel_filter.launch.yaml band_distances:="[5.0, 15.0, 30.0]" band_voxel_sizes:="[0.05, 0.15, 0.4]"
 ```
 
 #### Subscribed Topics

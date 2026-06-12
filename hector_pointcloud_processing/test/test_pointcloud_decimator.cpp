@@ -65,11 +65,8 @@ sensor_msgs::msg::PointCloud2::SharedPtr runDecimator( const rclcpp::NodeOptions
   auto helper = rclcpp::Node::make_shared( "test_decimator_helper" );
 
   sensor_msgs::msg::PointCloud2::SharedPtr received;
-  // The point_cloud_transport raw publisher advertises with BEST_EFFORT reliability, so the
-  // subscription must match it - otherwise it is never counted and the lazy subscriber that
-  // gates the decimator's input never starts.
   auto sub = helper->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "pointcloud_decimated", rclcpp::QoS( 10 ).best_effort(),
+      "pointcloud_decimated", rclcpp::QoS( 10 ).reliable(),
       [&received]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { received = msg; } );
   auto pub = helper->create_publisher<sensor_msgs::msg::PointCloud2>( "pointcloud", 10 );
 

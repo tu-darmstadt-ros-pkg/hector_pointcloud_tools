@@ -1,8 +1,8 @@
 // Copyright (c) 2025 Stefan Fabian. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifndef HECTOR_POINTCLOUD_PROCESSING_POINTCLOUD_ACCUMULATOR_H
-#define HECTOR_POINTCLOUD_PROCESSING_POINTCLOUD_ACCUMULATOR_H
+#ifndef HECTOR_POINTCLOUD_PROCESSING_POINTCLOUD_ACCUMULATOR_HPP
+#define HECTOR_POINTCLOUD_PROCESSING_POINTCLOUD_ACCUMULATOR_HPP
 
 #include <Eigen/Geometry>
 #include <mutex>

@@ -89,7 +89,8 @@ DistanceAdaptiveVoxelFilter::DistanceAdaptiveVoxelFilter( const rclcpp::NodeOpti
 
 void DistanceAdaptiveVoxelFilter::setup()
 {
-  pointcloud_publisher_ = pct_->advertise( output_, 10 );
+  pointcloud_publisher_ =
+      pct_->advertise( output_, rclcpp::QoS( 1 ).reliable().get_rmw_qos_profile() );
 
   check_subscribers_timer_ = create_wall_timer(
       std::chrono::milliseconds( 100 ),
@@ -131,8 +132,8 @@ void DistanceAdaptiveVoxelFilter::pointcloudCallback( const sensor_msgs::msg::Po
           rclcpp::Duration::from_seconds( 0.1 ) );
       transform = tf2::transformToEigen( tf );
     } catch ( const tf2::TransformException &ex ) {
-      RCLCPP_WARN_THROTTLE( get_logger(), *get_clock(), 2000, "Could not transform '%s' to '%s': %s",
-                            msg.header.frame_id.c_str(), target_frame_.c_str(), ex.what() );
+      RCLCPP_ERROR_THROTTLE( get_logger(), *get_clock(), 2000, "Could not transform '%s' to '%s': %s",
+                             msg.header.frame_id.c_str(), target_frame_.c_str(), ex.what() );
       return;
     }
   }

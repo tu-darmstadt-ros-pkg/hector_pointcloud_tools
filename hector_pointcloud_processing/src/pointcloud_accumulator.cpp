@@ -14,7 +14,7 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
                                                       const std::vector<std::string> &topics,
                                                       size_t queue_size )
     : frame_( frame ), resolution_( resolution ), max_queue_size_( queue_size ),
-      tfBuffer( node.get_clock() ), tfListener( tfBuffer, &node ), logger_( node.get_logger())
+      tfBuffer( node.get_clock() ), tfListener( tfBuffer, &node ), logger_( node.get_logger() )
 {
   reset_service_ = node.create_service<std_srvs::srv::Trigger>(
       "reset_pointcloud", [this]( std_srvs::srv::Trigger::Request::SharedPtr,
@@ -58,9 +58,10 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
   accumulated_cloud_.point_step = 12;
   accumulated_cloud_.is_dense = false;
 
-  RCLCPP_INFO( logger_, "PointcloudAccumulator initialized with resolution %f and max queue size %lu in "
-                "frame %s. Publishing every %fs.",
-                resolution_, max_queue_size_, frame_.c_str(), 1E9 / publish_rate.period().count() );
+  RCLCPP_INFO( logger_,
+               "PointcloudAccumulator initialized with resolution %f and max queue size %lu in "
+               "frame %s. Publishing every %fs.",
+               resolution_, max_queue_size_, frame_.c_str(), 1E9 / publish_rate.period().count() );
 
   processing_thread_ = std::thread( &PointcloudAccumulatorBase::processQueue, this );
 }
@@ -97,8 +98,8 @@ void PointcloudAccumulatorBase::publishPointcloud()
   accumulated_cloud_.row_step = accumulated_cloud_.point_step * accumulated_cloud_.width;
   accumulated_publisher_->publish( accumulated_cloud_ );
   RCLCPP_INFO( logger_, "Published pointcloud with %d points. (%u new, %u processed, %lu total)",
-                accumulated_cloud_.width, accumulated_cloud_.width - count_last_published_,
-                count_last_processed_, count_total_processed_ );
+               accumulated_cloud_.width, accumulated_cloud_.width - count_last_published_,
+               count_last_processed_, count_total_processed_ );
   if ( dropped_pointclouds_ > 0 ) {
     RCLCPP_WARN( logger_, "Dropped %u incoming pointclouds due to full queue.", dropped_pointclouds_ );
     dropped_pointclouds_ = 0;
@@ -198,7 +199,8 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
 {
   using namespace std::chrono_literals;
   if ( !tfBuffer.canTransform( frame_, msg->header.frame_id, msg->header.stamp, 1s ) ) {
-    RCLCPP_WARN( logger_, "Can't transform from %s to %s!", msg->header.frame_id.c_str(), frame_.c_str() );
+    RCLCPP_WARN( logger_, "Can't transform from %s to %s!", msg->header.frame_id.c_str(),
+                 frame_.c_str() );
     return;
   }
   geometry_msgs::msg::TransformStamped transform_msg =
@@ -301,7 +303,8 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointcloud(
     processPointCloudData<double>( msg );
     break;
   default:
-    RCLCPP_ERROR_ONCE( logger_, "Unsupported data type %d for x, y, z fields.", msg->fields[xi].datatype );
+    RCLCPP_ERROR_ONCE( logger_, "Unsupported data type %d for x, y, z fields.",
+                       msg->fields[xi].datatype );
     return;
   }
 }
@@ -328,7 +331,7 @@ PointcloudAccumulator<AGGREGATION_MODE>::addNewPoint(
     const auto &source_field = msg->fields[source_index];
     if ( source_field.datatype != target_field.datatype ) {
       RCLCPP_ERROR_ONCE( logger_, "Different data types for %s field are not supported.",
-                          target_field.name.c_str() );
+                         target_field.name.c_str() );
       continue;
     }
     int count = std::min( source_field.count, target_field.count );
