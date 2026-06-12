@@ -27,12 +27,14 @@ add_library(
   include/hector_pointcloud_processing/voxel_common.hpp
   include/hector_pointcloud_processing/voxel_filter.hpp
   include/hector_pointcloud_processing/distance_adaptive_voxel_filter.hpp
+  include/hector_pointcloud_processing/pointcloud_relay.hpp
   src/nodes/pointcloud_accumulator_node.hpp
   src/nodes/pointcloud_accumulator_node.cpp
   src/pointcloud_accumulator.cpp
   src/pointcloud_decimator.cpp
   src/voxel_filter.cpp
-  src/distance_adaptive_voxel_filter.cpp)
+  src/distance_adaptive_voxel_filter.cpp
+  src/pointcloud_relay.cpp)
 
 target_include_directories(
   hector_pointcloud_processing
@@ -69,6 +71,10 @@ rclcpp_components_register_node(
   hector_pointcloud_processing PLUGIN
   "hector_pointcloud_processing::DistanceAdaptiveVoxelFilter" EXECUTABLE
   distance_adaptive_voxel_filter)
+
+rclcpp_components_register_node(
+  hector_pointcloud_processing PLUGIN
+  "hector_pointcloud_processing::PointcloudRelay" EXECUTABLE pointcloud_relay)
 
 ament_export_targets(export_hector_pointcloud_processing)
 install(

@@ -14,6 +14,7 @@ Components are also available as standalone executables of the same name.
 | [`pointcloud_decimator`](#pointcloud_decimator)                     | `hector_pointcloud_processing::PointcloudDecimator`         | Reduces point count and republishes via point_cloud_transport |
 | [`voxel_filter`](#voxel_filter)                                     | `hector_pointcloud_processing::VoxelFilter`                 | Uniform voxel grid downsampling                               |
 | [`distance_adaptive_voxel_filter`](#distance_adaptive_voxel_filter) | `hector_pointcloud_processing::DistanceAdaptiveVoxelFilter` | Voxel grid downsampling with voxel size growing by distance   |
+| [`pointcloud_relay`](#pointcloud_relay)                             | `hector_pointcloud_processing::PointcloudRelay`             | Point cloud relay, republishes via point_cloud_transport      |
 
 **hector_pointcloud_io**:
 
@@ -229,3 +230,29 @@ ros2 launch hector_pointcloud_processing distance_adaptive_voxel_filter.launch.y
 | `target_frame`     | `std::string`              | `""`                | Frame the point position is expressed in for binning; empty uses raw xyz |
 | `tf_prefix`        | `std::string`              | `""`                | Prefix prepended to the frame id before publishing                       |
 | `keep_fields`      | `std::vector<std::string>` | `[]`                | Whitelist of fields to copy to the output; empty keeps all fields        |
+
+### `pointcloud_relay`
+
+Relays a cloud from input to output, republishing it through [point_cloud_transport](https://github.com/ros-perception/point_cloud_transport). The subscription takes a `ConstSharedPtr`, so in a component container with intra-process comms enabled the cloud is handed over without a copy. With `tf_prefix` empty the same shared message is forwarded untouched; setting `tf_prefix` prepends a tf prefix (`prefix/frame`) to the header frame id, which requires an owned copy to modify. The subscriber is only created while the output has subscribers.
+
+```bash
+ros2 launch hector_pointcloud_processing pointcloud_relay.launch.yaml tf_prefix:=robot1
+```
+
+#### Subscribed Topics
+
+| Topic        | Type                          | Description                 |
+| ------------ | ----------------------------- | --------------------------- |
+| `pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+
+#### Published Topics
+
+| Topic                | Type                    | Description                          |
+| -------------------- | ----------------------- | ------------------------------------ |
+| `pointcloud_relayed` | `point_cloud_transport` | Output topic for relayed pointclouds |
+
+#### Parameters
+
+| Parameter   | Type          | Default | Description                                                                          |
+| ----------- | ------------- | ------- | ------------------------------------------------------------------------------------ |
+| `tf_prefix` | `std::string` | `""`    | Prefix prepended to the header frame id before publishing; empty relays it unchanged |
