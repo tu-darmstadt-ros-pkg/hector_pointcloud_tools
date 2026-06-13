@@ -1,8 +1,8 @@
 // Copyright (c) 2025 Stefan Fabian. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifndef HECTOR_POINTCLOUD_ACCUMULATOR_H
-#define HECTOR_POINTCLOUD_ACCUMULATOR_H
+#ifndef HECTOR_POINTCLOUD_PROCESSING_POINTCLOUD_ACCUMULATOR_HPP
+#define HECTOR_POINTCLOUD_PROCESSING_POINTCLOUD_ACCUMULATOR_HPP
 
 #include <Eigen/Geometry>
 #include <mutex>
@@ -12,7 +12,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
-namespace hector_pointcloud_accumulator
+namespace hector_pointcloud_processing
 {
 
 enum class AggregationMode { AVERAGE, HIGHEST_Z, CLOSEST_TO_CENTER };
@@ -77,6 +77,7 @@ protected:
   sensor_msgs::msg::PointCloud2 accumulated_cloud_;
   tf2_ros::Buffer tfBuffer;
   tf2_ros::TransformListener tfListener;
+  rclcpp::Logger logger_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr accumulated_publisher_;
   std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr> pointcloud_subscriptions_;
@@ -135,6 +136,6 @@ struct PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>::PointInfo {
   float distance;
 };
 
-} // namespace hector_pointcloud_accumulator
+} // namespace hector_pointcloud_processing
 
 #endif

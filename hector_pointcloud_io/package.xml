@@ -12,9 +12,7 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>hector_ros2_utils</build_depend>
   <build_depend>libpcl-all-dev</build_depend>
-  <build_export_depend>hector_ros2_utils</build_export_depend>
   <depend>pcl_conversions</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>

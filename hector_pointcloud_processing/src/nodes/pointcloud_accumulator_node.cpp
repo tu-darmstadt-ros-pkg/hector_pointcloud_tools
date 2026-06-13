@@ -3,7 +3,7 @@
 
 #include "./pointcloud_accumulator_node.hpp"
 
-namespace hector_pointcloud_accumulator
+namespace hector_pointcloud_processing
 {
 
 PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions &options )
@@ -31,28 +31,25 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   std::vector<std::string> topics =
       get_parameter_or( "topics", std::vector<std::string>{ "pointcloud" } );
 
-  using hector_pointcloud_accumulator::PointcloudAccumulator;
+  using hector_pointcloud_processing::PointcloudAccumulator;
   if ( aggregation_mode == "average" ) {
-    hector_pointcloud_accumulator_ =
-        std::make_shared<PointcloudAccumulator<AggregationMode::AVERAGE>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+    accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::AVERAGE>>(
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else if ( aggregation_mode == "highest_z" ) {
-    hector_pointcloud_accumulator_ =
-        std::make_shared<PointcloudAccumulator<AggregationMode::HIGHEST_Z>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+    accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::HIGHEST_Z>>(
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else if ( aggregation_mode == "closest_to_center" ) {
-    hector_pointcloud_accumulator_ =
-        std::make_shared<PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>>(
-            *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+    accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>>(
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
   } else {
     RCLCPP_ERROR( get_logger(), "Unknown aggregation mode '%s'", aggregation_mode.c_str() );
   }
 }
-} // namespace hector_pointcloud_accumulator
+} // namespace hector_pointcloud_processing
 
 #include <rclcpp_components/register_node_macro.hpp>
 
 // Register the component with class_loader.
 // This acts as a sort of entry point, allowing the component to be discoverable when its library
 // is being loaded into a running process.
-RCLCPP_COMPONENTS_REGISTER_NODE( hector_pointcloud_accumulator::PointcloudAccumulatorNode );
+RCLCPP_COMPONENTS_REGISTER_NODE( hector_pointcloud_processing::PointcloudAccumulatorNode );

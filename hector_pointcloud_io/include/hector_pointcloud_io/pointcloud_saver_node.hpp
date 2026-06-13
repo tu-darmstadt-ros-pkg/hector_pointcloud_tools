@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include <hector_ros2_utils/node.hpp>
+#include "hector_pointcloud_io/_internal/hector_ros2_utils.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <std_srvs/srv/trigger.hpp>
 

@@ -22,7 +22,7 @@ launch:
       default: "false"
 
   - node:
-      pkg: hector_pointcloud_accumulator
+      pkg: hector_pointcloud_processing
       exec: pointcloud_accumulator_node
       name: pointcloud_accumulator_node
       output: screen

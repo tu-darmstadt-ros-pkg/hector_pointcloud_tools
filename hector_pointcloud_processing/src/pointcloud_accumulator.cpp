@@ -1,13 +1,11 @@
 // Copyright (c) 2025 Stefan Fabian. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include "hector_pointcloud_accumulator/pointcloud_accumulator.hpp"
-
-#include "./logging.hpp"
+#include "hector_pointcloud_processing/pointcloud_accumulator.hpp"
 
 #include <tf2_eigen/tf2_eigen.hpp>
 
-namespace hector_pointcloud_accumulator
+namespace hector_pointcloud_processing
 {
 
 PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double resolution,
@@ -16,7 +14,7 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
                                                       const std::vector<std::string> &topics,
                                                       size_t queue_size )
     : frame_( frame ), resolution_( resolution ), max_queue_size_( queue_size ),
-      tfBuffer( node.get_clock() ), tfListener( tfBuffer )
+      tfBuffer( node.get_clock() ), tfListener( tfBuffer, &node ), logger_( node.get_logger() )
 {
   reset_service_ = node.create_service<std_srvs::srv::Trigger>(
       "reset_pointcloud", [this]( std_srvs::srv::Trigger::Request::SharedPtr,
@@ -60,9 +58,10 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
   accumulated_cloud_.point_step = 12;
   accumulated_cloud_.is_dense = false;
 
-  PCA_LOG_INFO( "PointcloudAccumulator initialized with resolution %f and max queue size %lu in "
-                "frame %s. Publishing every %fs.",
-                resolution_, max_queue_size_, frame_.c_str(), 1E9 / publish_rate.period().count() );
+  RCLCPP_INFO( logger_,
+               "PointcloudAccumulator initialized with resolution %f and max queue size %lu in "
+               "frame %s. Publishing every %fs.",
+               resolution_, max_queue_size_, frame_.c_str(), 1E9 / publish_rate.period().count() );
 
   processing_thread_ = std::thread( &PointcloudAccumulatorBase::processQueue, this );
 }
@@ -83,7 +82,7 @@ void PointcloudAccumulatorBase::setEnabled( bool enabled ) { enabled_ = enabled;
 void PointcloudAccumulatorBase::reset()
 {
   std::scoped_lock lock{ accumulated_pointcloud_mutex_, pointcloud_queue_mutex_ };
-  PCA_LOG_INFO( "Resetting accumulated pointcloud." );
+  RCLCPP_INFO( logger_, "Resetting accumulated pointcloud." );
   pointcloud_queue_.clear();
   accumulated_cloud_.data.clear();
   accumulated_cloud_.width = 0;
@@ -98,11 +97,11 @@ void PointcloudAccumulatorBase::publishPointcloud()
   updated_ = false;
   accumulated_cloud_.row_step = accumulated_cloud_.point_step * accumulated_cloud_.width;
   accumulated_publisher_->publish( accumulated_cloud_ );
-  PCA_LOG_INFO( "Published pointcloud with %d points. (%u new, %u processed, %lu total)",
-                accumulated_cloud_.width, accumulated_cloud_.width - count_last_published_,
-                count_last_processed_, count_total_processed_ );
+  RCLCPP_INFO( logger_, "Published pointcloud with %d points. (%u new, %u processed, %lu total)",
+               accumulated_cloud_.width, accumulated_cloud_.width - count_last_published_,
+               count_last_processed_, count_total_processed_ );
   if ( dropped_pointclouds_ > 0 ) {
-    PCA_LOG_WARN( "Dropped %u incoming pointclouds due to full queue.", dropped_pointclouds_ );
+    RCLCPP_WARN( logger_, "Dropped %u incoming pointclouds due to full queue.", dropped_pointclouds_ );
     dropped_pointclouds_ = 0;
   }
   count_last_published_ = accumulated_cloud_.width;
@@ -200,7 +199,8 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
 {
   using namespace std::chrono_literals;
   if ( !tfBuffer.canTransform( frame_, msg->header.frame_id, msg->header.stamp, 1s ) ) {
-    PCA_LOG_WARN( "Can't transform from %s to %s!", msg->header.frame_id.c_str(), frame_.c_str() );
+    RCLCPP_WARN( logger_, "Can't transform from %s to %s!", msg->header.frame_id.c_str(),
+                 frame_.c_str() );
     return;
   }
   geometry_msgs::msg::TransformStamped transform_msg =
@@ -212,7 +212,7 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
   sensor_msgs::msg::PointField y_field = msg->fields[findChannelIndex( *msg, "y" )];
   sensor_msgs::msg::PointField z_field = msg->fields[findChannelIndex( *msg, "z" )];
   if ( x_field.datatype != y_field.datatype || x_field.datatype != z_field.datatype ) {
-    PCA_LOG_ERROR_ONCE( "Different data types for x, y, z fields are not supported." );
+    RCLCPP_ERROR_ONCE( logger_, "Different data types for x, y, z fields are not supported." );
     return;
   }
 
@@ -225,7 +225,7 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
       continue;
     }
     if ( accumulated_cloud_.width != 0 ) {
-      PCA_LOG_ERROR_ONCE( "Mixing pointclouds with different fields is not supported." );
+      RCLCPP_ERROR_ONCE( logger_, "Mixing pointclouds with different fields is not supported." );
       break;
     }
     addField( field );
@@ -274,7 +274,7 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointcloud(
   int32_t yi = findChannelIndex( *msg, "y" );
   int32_t zi = findChannelIndex( *msg, "z" );
   if ( xi == -1 || yi == -1 || zi == -1 ) {
-    PCA_LOG_WARN( "No x, y, or z channel found in point cloud message!" );
+    RCLCPP_WARN( logger_, "No x, y, or z channel found in point cloud message!" );
     return;
   }
   switch ( msg->fields[xi].datatype ) {
@@ -303,7 +303,8 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointcloud(
     processPointCloudData<double>( msg );
     break;
   default:
-    PCA_LOG_ERROR_ONCE( "Unsupported data type %d for x, y, z fields.", msg->fields[xi].datatype );
+    RCLCPP_ERROR_ONCE( logger_, "Unsupported data type %d for x, y, z fields.",
+                       msg->fields[xi].datatype );
     return;
   }
 }
@@ -329,8 +330,8 @@ PointcloudAccumulator<AGGREGATION_MODE>::addNewPoint(
       continue;
     const auto &source_field = msg->fields[source_index];
     if ( source_field.datatype != target_field.datatype ) {
-      PCA_LOG_ERROR_ONCE( "Different data types for %s field are not supported.",
-                          target_field.name.c_str() );
+      RCLCPP_ERROR_ONCE( logger_, "Different data types for %s field are not supported.",
+                         target_field.name.c_str() );
       continue;
     }
     int count = std::min( source_field.count, target_field.count );
@@ -396,4 +397,4 @@ void PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>::updatePoint(
 template class PointcloudAccumulator<AggregationMode::AVERAGE>;
 template class PointcloudAccumulator<AggregationMode::HIGHEST_Z>;
 template class PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>;
-} // namespace hector_pointcloud_accumulator
+} // namespace hector_pointcloud_processing

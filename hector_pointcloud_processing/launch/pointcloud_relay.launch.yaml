@@ -1,0 +1,19 @@
+%YAML 1.2
+---
+launch:
+- arg:
+    name: name
+    default: "pointcloud_relay"
+    description: The name of the node
+- arg:
+    name: tf_prefix
+    default: ""
+    description: Prefix prepended to the header frame id before publishing; empty relays the frame unchanged
+- node:
+    pkg: hector_pointcloud_processing
+    exec: pointcloud_relay
+    name: $(var name)
+    output: screen
+    param:
+      - name: tf_prefix
+        value: $(var tf_prefix)

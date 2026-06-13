@@ -1,17 +1,16 @@
-#include "hector_pointcloud_decimator/pointcloud_decimator.hpp"
+#include "hector_pointcloud_processing/pointcloud_decimator.hpp"
 #include <functional>
-#include <hector_ros2_utils/node.hpp>
 #include <point_cloud_transport/point_cloud_transport.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <std_msgs/msg/bool.hpp>
 
-namespace hector_pointcloud_decimator
+namespace hector_pointcloud_processing
 {
 
 PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
-    : Node( "pointcloud_decimator", options ), input_( "/pointcloud" ),
-      output_( "/pointcloud_decimated" ), elimination_method_( "count" ),
+    : Node( "pointcloud_decimator", options ), input_( "pointcloud" ),
+      output_( "pointcloud_decimated" ), elimination_method_( "count" ),
       elimination_quantifier_( "fraction" ), point_fraction_( 0.1 ), point_count_( 1000 )
 {
   // Parameters
@@ -57,7 +56,8 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
 void PointcloudDecimator::setup()
 {
   // publisher for publishing outgoing messages
-  pointcloud_publisher_ = pct_->advertise( output_, 10 );
+  pointcloud_publisher_ =
+      pct_->advertise( output_, rclcpp::QoS( 1 ).reliable().get_rmw_qos_profile() );
 
   check_subscribers_timer_ =
       create_wall_timer( std::chrono::milliseconds( 100 ),
@@ -157,24 +157,27 @@ void PointcloudDecimator::printNodeStatus() const
   const std::string input_remapped = node_topics_interface_->resolve_topic_name( input_ );
   const std::string output_remapped = node_topics_interface_->resolve_topic_name( output_ );
 
-  RCLCPP_INFO( get_logger(), "The node has the following attributes:" );
+  std::stringstream info;
+  info << "The node has the following attributes:" << std::endl;
   if ( input_ == input_remapped ) {
-    RCLCPP_INFO_STREAM( get_logger(), "  input:                  " << input_ );
+    info << "  input:                  " << input_ << std::endl;
   } else {
-    RCLCPP_INFO_STREAM( get_logger(), "  input remapped to:      " << input_remapped );
+    info << "  input remapped to:      " << input_remapped << std::endl;
   }
   if ( output_ == output_remapped ) {
-    RCLCPP_INFO_STREAM( get_logger(), "  output:                 " << output_ );
+    info << "  output:                 " << output_ << std::endl;
   } else {
-    RCLCPP_INFO_STREAM( get_logger(), "  output remapped to:     " << output_remapped );
+    info << "  output remapped to:     " << output_remapped << std::endl;
   }
-  RCLCPP_INFO_STREAM( get_logger(), "  elimination_method:     " << elimination_method_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  elimination_quantifier: " << elimination_quantifier_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  point_fraction:         " << point_fraction_ );
-  RCLCPP_INFO_STREAM( get_logger(), "  point_count:            " << point_count_ );
+  info << "  elimination_method:     " << elimination_method_ << std::endl;
+  info << "  elimination_quantifier: " << elimination_quantifier_ << std::endl;
+  info << "  point_fraction:         " << point_fraction_ << std::endl;
+  info << "  point_count:            " << point_count_ << std::endl;
+
+  RCLCPP_INFO_STREAM( get_logger(), info.str() );
 }
 
-} // namespace hector_pointcloud_decimator
+} // namespace hector_pointcloud_processing
 
 #include <rclcpp_components/register_node_macro.hpp>
-RCLCPP_COMPONENTS_REGISTER_NODE( hector_pointcloud_decimator::PointcloudDecimator )
+RCLCPP_COMPONENTS_REGISTER_NODE( hector_pointcloud_processing::PointcloudDecimator )

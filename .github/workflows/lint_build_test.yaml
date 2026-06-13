@@ -30,7 +30,7 @@ jobs:
       - name: Run cppcheck on C++ code
         run: |
           echo "Running cppcheck on C++ code..."
-          cppcheck --force --quiet --inline-suppr --error-exitcode=1 --language=c++ $(find . -name '*.cpp' -o -name '*.hpp' -o -name '*.h' -o -name '*.c' -o -name '*.cc')
+          cppcheck --force --quiet --inline-suppr --error-exitcode=1 --language=c++ --library=googletest $(find . -name '*.cpp' -o -name '*.hpp' -o -name '*.h' -o -name '*.c' -o -name '*.cc')
 
       - name: Lint package.xml
         run: |
@@ -43,8 +43,6 @@ jobs:
         setup:
           - rosdistro: jazzy
             os: ubuntu-24.04
-          - rosdistro: rolling
-            os: ubuntu-latest
     runs-on: ${{ matrix.setup.os }}
     container:
       image: ros:${{ matrix.setup.rosdistro }}-ros-base
@@ -53,10 +51,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ros-dev-tools
-      - uses: actions/checkout@v4
-        with:
-          repository: tu-darmstadt-ros-pkg/hector_ros2_utils
-          path: src/hector_ros2_utils
       - uses: actions/checkout@v4
         with:
           path: src/repo
