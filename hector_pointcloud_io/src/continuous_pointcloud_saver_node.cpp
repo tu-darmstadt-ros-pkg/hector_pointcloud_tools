@@ -58,12 +58,16 @@ void ContinuousPointcloudSaver::cloudCallback( const sensor_msgs::msg::PointClou
   if ( ( time - last_cloud_stamp_ ).seconds() < save_interval_ && !save_next_ ) {
     return;
   }
+  std::string infix = "";
+  if ( save_next_ ) {
+    infix = "manually_saved";
+  }
   save_next_ = false;
   last_cloud_stamp_ = time;
 
   std::string timestamp = std::to_string( time.nanoseconds() / 1000 );
-  std::string path =
-      output_folder_ + "/" + output_filename_prefix_ + "." + timestamp + "." + output_format_;
+  std::string path = output_folder_ + "/" + output_filename_prefix_ + infix + "." + timestamp +
+                     "." + output_format_;
   if ( !save_pointcloud( path, *pointcloud ) ) {
     RCLCPP_ERROR( this->get_logger(), "Failed to write pointcloud to file." );
     return;
