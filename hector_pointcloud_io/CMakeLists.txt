@@ -15,8 +15,11 @@ find_package(std_srvs REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common io)
 find_package(pcl_conversions REQUIRED)
 
-add_library(hector_pointcloud_io SHARED src/pointcloud_saver_node.cpp
-                                        src/pointcloud_io.cpp)
+add_library(
+  hector_pointcloud_io SHARED
+  src/pointcloud_saver_node.cpp src/continuous_pointcloud_saver_node.cpp
+  src/pointcloud_io.cpp)
+
 target_include_directories(
   hector_pointcloud_io
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -33,6 +36,10 @@ ament_target_dependencies(
 rclcpp_components_register_node(
   hector_pointcloud_io PLUGIN "hector_pointcloud_io::PointcloudSaver"
   EXECUTABLE pointcloud_saver)
+
+rclcpp_components_register_node(
+  hector_pointcloud_io PLUGIN "hector_pointcloud_io::ContinuousPointcloudSaver"
+  EXECUTABLE continuous_pointcloud_saver)
 
 add_executable(save_pointcloud src/save_pointcloud.cpp)
 target_link_libraries(save_pointcloud hector_pointcloud_io)
