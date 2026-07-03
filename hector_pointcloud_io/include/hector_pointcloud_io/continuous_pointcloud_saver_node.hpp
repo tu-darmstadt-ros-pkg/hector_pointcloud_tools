@@ -1,3 +1,5 @@
+// Original Copyright (c) 2025 Stefan Fabian. All rights reserved.
+// Extended version by Frederik Bark
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #ifndef HECTOR_POINTCLOUD_IO_CONTINUOUS_POINTCLOUD_SAVER_NODE_HPP
