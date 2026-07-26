@@ -27,8 +27,10 @@ PointcloudRelay::PointcloudRelay( const rclcpp::NodeOptions &options )
 
 void PointcloudRelay::setup()
 {
+  rclcpp::PublisherOptions publisher_options;
+  publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pointcloud_publisher_ =
-      pct_->advertise( output_, rclcpp::QoS( 1 ).reliable().get_rmw_qos_profile() );
+      pct_->advertise( output_, rclcpp::SensorDataQoS().get_rmw_qos_profile(), publisher_options );
 
   check_subscribers_timer_ =
       create_wall_timer( std::chrono::milliseconds( 100 ),
@@ -66,8 +68,12 @@ void PointcloudRelay::publisherSubscriptionCallback()
 void PointcloudRelay::startSubscribers()
 {
   RCLCPP_INFO( get_logger(), "Starting subscriber" );
+  rclcpp::SubscriptionOptions subscription_options;
+  subscription_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pointcloud_subscriber_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-      input_, 10, std::bind( &PointcloudRelay::pointcloudCallback, this, std::placeholders::_1 ) );
+      input_, rclcpp::SensorDataQoS(),
+      std::bind( &PointcloudRelay::pointcloudCallback, this, std::placeholders::_1 ),
+      subscription_options );
 }
 
 void PointcloudRelay::stopSubscribers()

@@ -89,8 +89,10 @@ DistanceAdaptiveVoxelFilter::DistanceAdaptiveVoxelFilter( const rclcpp::NodeOpti
 
 void DistanceAdaptiveVoxelFilter::setup()
 {
+  rclcpp::PublisherOptions publisher_options;
+  publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pointcloud_publisher_ =
-      pct_->advertise( output_, rclcpp::QoS( 1 ).reliable().get_rmw_qos_profile() );
+      pct_->advertise( output_, rclcpp::SensorDataQoS().get_rmw_qos_profile(), publisher_options );
 
   check_subscribers_timer_ = create_wall_timer(
       std::chrono::milliseconds( 100 ),
@@ -168,9 +170,12 @@ void DistanceAdaptiveVoxelFilter::publisherSubscriptionCallback()
 void DistanceAdaptiveVoxelFilter::startSubscribers()
 {
   RCLCPP_INFO( get_logger(), "Starting subscriber" );
+  rclcpp::SubscriptionOptions subscription_options;
+  subscription_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pointcloud_subscriber_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-      input_, 10,
-      std::bind( &DistanceAdaptiveVoxelFilter::pointcloudCallback, this, std::placeholders::_1 ) );
+      input_, rclcpp::SensorDataQoS(),
+      std::bind( &DistanceAdaptiveVoxelFilter::pointcloudCallback, this, std::placeholders::_1 ),
+      subscription_options );
 }
 
 void DistanceAdaptiveVoxelFilter::stopSubscribers()

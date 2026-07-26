@@ -1,9 +1,8 @@
 #include "hector_pointcloud_processing/pointcloud_decimator.hpp"
+#include <cstring>
 #include <functional>
 #include <point_cloud_transport/point_cloud_transport.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
-#include <std_msgs/msg/bool.hpp>
 
 namespace hector_pointcloud_processing
 {
@@ -56,14 +55,13 @@ PointcloudDecimator::PointcloudDecimator( const rclcpp::NodeOptions &options )
 void PointcloudDecimator::setup()
 {
   // publisher for publishing outgoing messages
+  rclcpp::PublisherOptions publisher_options;
+  publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pointcloud_publisher_ =
-      pct_->advertise( output_, rclcpp::QoS( 1 ).reliable().get_rmw_qos_profile() );
+      pct_->advertise( output_, rclcpp::SensorDataQoS().get_rmw_qos_profile(), publisher_options );
 
-  check_subscribers_timer_ =
-      create_wall_timer( std::chrono::milliseconds( 100 ),
-                         std::bind( &PointcloudDecimator::publisherSubscriptionCallback, this ) );
-
-  std::srand( std::time( {} ) );
+  check_subscribers_timer_ = create_wall_timer( std::chrono::milliseconds( 100 ),
+                                                [this] { publisherSubscriptionCallback(); } );
 }
 
 void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud2 &msg )
@@ -82,45 +80,46 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
     point_fraction = point_fraction_;
   }
 
-  RCLCPP_DEBUG( get_logger(), "Reducing %lu points to %lu", input_size, point_count );
+  RCLCPP_DEBUG( get_logger(), "Reducing %zu points to %zu", input_size, point_count );
 
-  // Copy shared fields
-  sensor_msgs::msg::PointCloud2 output;
-  output.header = msg.header;
-  output.height = 1;
-  output.fields = msg.fields;
-  output.is_bigendian = msg.is_bigendian;
-  output.point_step = msg.point_step;
-  output.is_dense = false;
-
-  output.data.clear();
-  output.data.reserve( point_count * point_step );
-  const std::back_insert_iterator<std::vector<unsigned char>> output_iterator =
-      std::back_inserter( output.data );
+  // Copy shared fields. Published as unique_ptr to allow zero-copy intra-process delivery (once
+  // pointcloud transport supports it).
+  auto output = std::make_unique<sensor_msgs::msg::PointCloud2>();
+  output->header = msg.header;
+  output->height = 1;
+  output->fields = msg.fields;
+  output->is_bigendian = msg.is_bigendian;
+  output->point_step = msg.point_step;
+  output->is_dense = msg.is_dense;
 
   if ( elimination_method_ == "random" ) {
     // Choose points randomly. This will usually not match the chosen fraction/count exactly
+    output->data.reserve( point_count * point_step );
+    std::uniform_real_distribution<double> distribution( 0.0, 1.0 );
     for ( size_t point = 0; point < input_size; ++point ) {
-      const size_t source_index = point * point_step;
-
-      if ( static_cast<double>( std::rand() ) / RAND_MAX > point_fraction )
+      if ( distribution( random_generator_ ) > point_fraction )
         continue;
 
-      std::copy_n( msg.data.begin() + source_index, point_step, output_iterator );
+      const unsigned char *source = msg.data.data() + point * point_step;
+      output->data.insert( output->data.end(), source, source + point_step );
     }
   } else {
     // Choose points with roughly equal distance. This could theoretically cause artifacts
+    output->data.resize( point_count * point_step );
+    unsigned char *destination = output->data.data();
+    const double stride = 1.0 / point_fraction;
     for ( size_t point = 0; point < point_count; ++point ) {
-      const size_t source_index = static_cast<size_t>( point / point_fraction ) * point_step;
+      const size_t source_index = static_cast<size_t>( point * stride ) * point_step;
 
-      std::copy_n( msg.data.begin() + source_index, point_step, output_iterator );
+      std::memcpy( destination, msg.data.data() + source_index, point_step );
+      destination += point_step;
     }
   }
 
-  output.row_step = output.data.size();
-  output.width = output.row_step / point_step;
+  output->row_step = output->data.size();
+  output->width = output->row_step / point_step;
 
-  pointcloud_publisher_.publish( output );
+  pointcloud_publisher_.publish( std::move( output ) );
 }
 
 void PointcloudDecimator::publisherSubscriptionCallback()
@@ -142,8 +141,12 @@ void PointcloudDecimator::publisherSubscriptionCallback()
 void PointcloudDecimator::startSubscribers()
 {
   RCLCPP_INFO( get_logger(), "Starting subscriber" );
+  rclcpp::SubscriptionOptions subscription_options;
+  subscription_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pointcloud_subscriber_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-      input_, 10, std::bind( &PointcloudDecimator::pointcloudCallback, this, std::placeholders::_1 ) );
+      input_, rclcpp::SensorDataQoS(),
+      [this]( const sensor_msgs::msg::PointCloud2 &msg ) { pointcloudCallback( msg ); },
+      subscription_options );
 }
 
 void PointcloudDecimator::stopSubscribers()

@@ -29,14 +29,24 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
         res->success = true;
       } );
 
+  // Durability is included so the accumulated cloud's latching can be reconfigured too.
+  const rclcpp::QosOverridingOptions qos_overriding_options{
+      rclcpp::QosPolicyKind::History, rclcpp::QosPolicyKind::Depth,
+      rclcpp::QosPolicyKind::Reliability, rclcpp::QosPolicyKind::Durability };
+
+  rclcpp::SubscriptionOptions subscription_options;
+  subscription_options.qos_overriding_options = qos_overriding_options;
   for ( const auto &topic : topics ) {
     pointcloud_subscriptions_.emplace_back( node.create_subscription<sensor_msgs::msg::PointCloud2>(
-        topic, 10,
-        [this]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { onNewPointcloud( msg ); } ) );
+        topic, rclcpp::SensorDataQoS(),
+        [this]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { onNewPointcloud( msg ); },
+        subscription_options ) );
   }
 
+  rclcpp::PublisherOptions publisher_options;
+  publisher_options.qos_overriding_options = qos_overriding_options;
   accumulated_publisher_ = node.create_publisher<sensor_msgs::msg::PointCloud2>(
-      "accumulated_pointcloud", rclcpp::QoS( 1 ).transient_local().reliable() );
+      "accumulated_pointcloud", rclcpp::QoS( 1 ).transient_local().reliable(), publisher_options );
   publish_timer_ = node.create_wall_timer( publish_rate.period(), [this]() { publishPointcloud(); } );
 
   accumulated_cloud_.header.frame_id = frame_;

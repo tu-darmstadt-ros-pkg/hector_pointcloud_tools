@@ -29,6 +29,26 @@ Components are also available as standalone executables of the same name.
 
 Contains nodes for accumulation and decimating of point clouds.
 
+### QoS
+
+All pointcloud inputs and outputs default to `SensorDataQoS` (best effort, keep last 5). The one
+exception is the accumulator's `accumulated_pointcloud`, which stays reliable and transient local so
+late joiners still receive the accumulated map.
+
+History, depth and reliability — plus durability on the accumulator — can be overridden per topic
+without code changes via the standard `qos_overrides` parameters, either at launch or through a
+params file:
+
+```bash
+ros2 run hector_pointcloud_processing pointcloud_decimator --ros-args \
+  -p qos_overrides./pointcloud_decimated.publisher.reliability:=reliable \
+  -p qos_overrides./pointcloud.subscription.depth:=10
+```
+
+The parameter name follows `qos_overrides.<resolved topic>.<publisher|subscription>.<policy>`. Nodes
+that only subscribe once their output is subscribed to declare the subscription overrides when that
+subscription is first created; overrides supplied at startup are applied at that point.
+
 ### `pointcloud_accumulator`
 
 Voxel-filtered pointcloud accumulator. You can choose if it should store a running average, the highest z or the point closest to the center for each voxel.

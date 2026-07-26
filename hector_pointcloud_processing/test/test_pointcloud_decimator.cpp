@@ -66,7 +66,7 @@ sensor_msgs::msg::PointCloud2::SharedPtr runDecimator( const rclcpp::NodeOptions
 
   sensor_msgs::msg::PointCloud2::SharedPtr received;
   auto sub = helper->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "pointcloud_decimated", rclcpp::QoS( 10 ).reliable(),
+      "pointcloud_decimated", rclcpp::SensorDataQoS(),
       [&received]( sensor_msgs::msg::PointCloud2::SharedPtr msg ) { received = msg; } );
   auto pub = helper->create_publisher<sensor_msgs::msg::PointCloud2>( "pointcloud", 10 );
 
