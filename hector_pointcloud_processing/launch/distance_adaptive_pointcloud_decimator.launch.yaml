@@ -1,0 +1,35 @@
+launch:
+- arg:
+    name: name
+    default: "distance_adaptive_pointcloud_decimator"
+    description: The name of the node
+- arg:
+    name: distances
+    default: "[0.0, 2.0, 6.0]"
+    description: Ascending control-point ranges (m); paired by index with percentages
+- arg:
+    name: percentages
+    default: "[0.5, 0.3, 0.1]"
+    description: Keep fraction [0, 1] per range; paired by index with distances
+- arg:
+    name: target_frame
+    default: ""
+    description: Frame to express the point position in for the distance; empty uses the raw point xyz
+- arg:
+    name: tf_prefix
+    default: ""
+    description: Prefix prepended to frame id when publishing decimated cloud
+- node:
+    pkg: hector_pointcloud_processing
+    exec: distance_adaptive_pointcloud_decimator
+    name: $(var name)
+    output: screen
+    param:
+      - name: distances
+        value: $(var distances)
+      - name: percentages
+        value: $(var percentages)
+      - name: target_frame
+        value: $(var target_frame)
+      - name: tf_prefix
+        value: $(var tf_prefix)

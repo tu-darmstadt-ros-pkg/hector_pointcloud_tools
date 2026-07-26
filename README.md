@@ -8,13 +8,14 @@ Components are also available as standalone executables of the same name.
 
 **hector_pointcloud_processing**:
 
-| Component                                                           | Class                                                       | Description                                                   |
-| ------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
-| [`pointcloud_accumulator`](#pointcloud_accumulator)                 | `hector_pointcloud_processing::PointcloudAccumulatorNode`   | Voxel-filtered accumulation of multiple clouds into one frame |
-| [`pointcloud_decimator`](#pointcloud_decimator)                     | `hector_pointcloud_processing::PointcloudDecimator`         | Reduces point count and republishes via point_cloud_transport |
-| [`voxel_filter`](#voxel_filter)                                     | `hector_pointcloud_processing::VoxelFilter`                 | Uniform voxel grid downsampling                               |
-| [`distance_adaptive_voxel_filter`](#distance_adaptive_voxel_filter) | `hector_pointcloud_processing::DistanceAdaptiveVoxelFilter` | Voxel grid downsampling with voxel size growing by distance   |
-| [`pointcloud_relay`](#pointcloud_relay)                             | `hector_pointcloud_processing::PointcloudRelay`             | Point cloud relay, republishes via point_cloud_transport      |
+| Component                                                                           | Class                                                               | Description                                                   |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`pointcloud_accumulator`](#pointcloud_accumulator)                                 | `hector_pointcloud_processing::PointcloudAccumulatorNode`           | Voxel-filtered accumulation of multiple clouds into one frame |
+| [`pointcloud_decimator`](#pointcloud_decimator)                                     | `hector_pointcloud_processing::PointcloudDecimator`                 | Reduces point count and republishes via point_cloud_transport |
+| [`distance_adaptive_pointcloud_decimator`](#distance_adaptive_pointcloud_decimator) | `hector_pointcloud_processing::DistanceAdaptivePointcloudDecimator` | Random decimation with a keep probability varying by distance |
+| [`voxel_filter`](#voxel_filter)                                                     | `hector_pointcloud_processing::VoxelFilter`                         | Uniform voxel grid downsampling                               |
+| [`distance_adaptive_voxel_filter`](#distance_adaptive_voxel_filter)                 | `hector_pointcloud_processing::DistanceAdaptiveVoxelFilter`         | Voxel grid downsampling with voxel size growing by distance   |
+| [`pointcloud_relay`](#pointcloud_relay)                                             | `hector_pointcloud_processing::PointcloudRelay`                     | Point cloud relay, republishes via point_cloud_transport      |
 
 **hector_pointcloud_io**:
 
@@ -105,6 +106,44 @@ This method should prevent noticeable patterns in the pointcloud, but will likel
 | `elimination_quantifier` | `std::string` | `"fraction"` | How the amount of points to be kept is quantified (`fraction`/`count`)     |
 | `point_fraction`         | `double`      | `0.1`        | Fraction of points to keep (used if `elimination_quantifier = "fraction"`) |
 | `point_count`            | `int`         | `1000`       | Number of points to keep (used if `elimination_quantifier = "count"`)      |
+
+### `distance_adaptive_pointcloud_decimator`
+
+Like `pointcloud_decimator`'s `random` method, but the keep probability varies with each point's distance from the origin, so near points can be kept densely while distant points are thinned.
+The schedule is given as two equal-length lists: `distances` (ascending control-point ranges, m) and `percentages` (keep fraction in `[0, 1]`), paired by index.
+Only `distances` has to be ascending; `percentages` may rise as well as fall, so the schedule can also be inverted to keep distant points with a higher probability than close ones.
+For a point at range `r` the keep probability is the linear interpolation between the surrounding control points; outside the first/last distance it is clamped to the first/last percentage (no extrapolation).
+Each point is then kept by an independent random draw, so the output size matches the requested fractions only in expectation.
+Kept points are copied verbatim, so all fields are preserved.
+
+With `target_frame` set, the distance is evaluated in that frame (via tf), e.g. the robot body frame when the cloud is published in a sensor or odom frame. The published points stay in the input frame; only the probability lookup changes.
+
+```bash
+ros2 launch hector_pointcloud_processing distance_adaptive_pointcloud_decimator.launch.yaml distances:="[2.0, 10.0, 30.0]" percentages:="[1.0, 0.5, 0.1]"
+```
+
+#### Subscribed Topics
+
+| Topic        | Type                          | Description                 |
+| ------------ | ----------------------------- | --------------------------- |
+| `pointcloud` | `sensor_msgs/msg/PointCloud2` | Input topic for pointclouds |
+
+#### Published Topics
+
+| Topic                  | Type                    | Description                            |
+| ---------------------- | ----------------------- | -------------------------------------- |
+| `pointcloud_decimated` | `point_cloud_transport` | Output topic for decimated pointclouds |
+
+#### Parameters
+
+| Parameter      | Type                  | Default             | Description                                                                   |
+| -------------- | --------------------- | ------------------- | ----------------------------------------------------------------------------- |
+| `distances`    | `std::vector<double>` | `[2.0, 10.0, 30.0]` | Ascending control-point ranges (m); paired by index with `percentages`        |
+| `percentages`  | `std::vector<double>` | `[1.0, 0.5, 0.1]`   | Keep fraction in `[0, 1]` per range; paired by index with `distances`         |
+| `target_frame` | `std::string`         | `""`                | Frame the point position is expressed in for the distance; empty uses raw xyz |
+| `tf_prefix`    | `std::string`         | `""`                | Prefix prepended to the frame id before publishing                            |
+
+All parameters are read-only and are set at startup. Invalid values, including two lists of different length, make the node fail to start.
 
 ## hector_pointcloud_io
 
