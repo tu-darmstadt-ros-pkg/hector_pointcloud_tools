@@ -27,6 +27,7 @@ add_library(
   include/hector_pointcloud_processing/voxel_common.hpp
   include/hector_pointcloud_processing/voxel_filter.hpp
   include/hector_pointcloud_processing/distance_adaptive_voxel_filter.hpp
+  include/hector_pointcloud_processing/pointcloud_merger.hpp
   include/hector_pointcloud_processing/distance_adaptive_pointcloud_decimator.hpp
   include/hector_pointcloud_processing/pointcloud_relay.hpp
   src/nodes/pointcloud_accumulator_node.hpp
@@ -35,6 +36,7 @@ add_library(
   src/pointcloud_decimator.cpp
   src/voxel_filter.cpp
   src/distance_adaptive_voxel_filter.cpp
+  src/pointcloud_merger.cpp
   src/distance_adaptive_pointcloud_decimator.cpp
   src/pointcloud_relay.cpp)
 
@@ -73,6 +75,10 @@ rclcpp_components_register_node(
   hector_pointcloud_processing PLUGIN
   "hector_pointcloud_processing::DistanceAdaptiveVoxelFilter" EXECUTABLE
   distance_adaptive_voxel_filter)
+
+rclcpp_components_register_node(
+  hector_pointcloud_processing PLUGIN
+  "hector_pointcloud_processing::PointcloudMerger" EXECUTABLE pointcloud_merger)
 
 rclcpp_components_register_node(
   hector_pointcloud_processing PLUGIN
