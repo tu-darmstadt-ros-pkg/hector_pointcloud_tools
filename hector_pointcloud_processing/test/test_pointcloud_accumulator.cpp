@@ -2,10 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "hector_pointcloud_processing/pointcloud_accumulator.hpp"
+#include "../src/nodes/pointcloud_accumulator_node.hpp"
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstring>
+#include <limits>
+#include <thread>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
@@ -24,6 +28,22 @@ public:
   using PointcloudAccumulator<MODE>::PointcloudAccumulator;
 
   const sensor_msgs::msg::PointCloud2 &accumulatedCloud() const { return this->accumulated_cloud_; }
+
+  bool updated() const { return this->updated_; }
+
+  void enqueue( const sensor_msgs::msg::PointCloud2::SharedPtr &msg ) { this->onNewPointcloud( msg ); }
+
+  //! Waits until the processing thread has finished a cloud and holds the next one.
+  void waitForProcessing()
+  {
+    while ( true ) {
+      {
+        std::lock_guard lock( this->accumulated_pointcloud_mutex_ );
+        if ( this->accumulated_cloud_.width > 0 ) return;
+      }
+      std::this_thread::sleep_for( std::chrono::microseconds( 50 ) );
+    }
+  }
 };
 
 struct Field {
@@ -78,10 +98,12 @@ Eigen::Vector3f readPoint( const sensor_msgs::msg::PointCloud2 &cloud, size_t i 
 }
 
 template<AggregationMode MODE>
-std::shared_ptr<TestableAccumulator<MODE>> makeAccumulator( rclcpp::Node &node, double resolution )
+std::shared_ptr<TestableAccumulator<MODE>> makeAccumulator( rclcpp::Node &node, double resolution,
+                                                            double max_range = 0.0 )
 {
-  return std::make_shared<TestableAccumulator<MODE>>(
-      node, resolution, "map", rclcpp::Rate( 1.0 ), std::vector<std::string>{}, /*queue_size=*/10 );
+  return std::make_shared<TestableAccumulator<MODE>>( node, resolution, "map", rclcpp::Rate( 1.0 ),
+                                                      std::vector<std::string>{},
+                                                      /*queue_size=*/10, max_range );
 }
 
 class AccumulatorTest : public ::testing::Test
@@ -155,12 +177,12 @@ TEST_F( AccumulatorTest, HighestZIgnoresLowerPoint )
 TEST_F( AccumulatorTest, ClosestToCenterKeepsNearestPoint )
 {
   auto acc = makeAccumulator<AggregationMode::CLOSEST_TO_CENTER>( *node_, 1.0 );
-  // Voxel (0, 0, 0) center is (0.5, 0.5, 0.5); the second point is closer to it.
-  acc->processPointcloud( makeCloud( { { 0.1f, 0.1f, 0.1f }, { 0.4f, 0.4f, 0.4f } } ) );
+  // Both round to voxel (0, 0, 0), centred on the origin; the first point is closer to it.
+  acc->processPointcloud( makeCloud( { { 0.4f, 0.4f, 0.4f }, { 0.1f, 0.1f, 0.1f } } ) );
 
   ASSERT_EQ( acc->accumulatedCloud().width, 1u );
   EXPECT_TRUE(
-      readPoint( acc->accumulatedCloud(), 0 ).isApprox( Eigen::Vector3f( 0.4f, 0.4f, 0.4f ), kEps ) );
+      readPoint( acc->accumulatedCloud(), 0 ).isApprox( Eigen::Vector3f( 0.1f, 0.1f, 0.1f ), kEps ) );
 }
 
 TEST_F( AccumulatorTest, ResolutionControlsVoxelSize )
@@ -235,6 +257,115 @@ TEST_F( AccumulatorTest, ResetClearsAccumulatedCloud )
   // After a reset accumulation starts over cleanly.
   acc->processPointcloud( makeCloud( { { 0, 0, 0 } } ) );
   EXPECT_EQ( acc->accumulatedCloud().width, 1u );
+}
+
+TEST_F( AccumulatorTest, NonFinitePointsAreSkipped )
+{
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const float inf = std::numeric_limits<float>::infinity();
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  acc->processPointcloud( makeCloud( { { nan, 0, 0 }, { 0, inf, 0 }, { 3, 0, 0 } } ) );
+
+  ASSERT_EQ( acc->accumulatedCloud().width, 1u );
+  EXPECT_TRUE( readPoint( acc->accumulatedCloud(), 0 ).isApprox( Eigen::Vector3f( 3, 0, 0 ), kEps ) );
+}
+
+TEST_F( AccumulatorTest, MaxRangeSkipsFarPoints )
+{
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0, /*max_range=*/5.0 );
+  acc->processPointcloud( makeCloud( { { 3, 4, 0 }, { 4, 4, 0 }, { 0, 0, -6 } } ) );
+
+  ASSERT_EQ( acc->accumulatedCloud().width, 1u );
+  EXPECT_TRUE( readPoint( acc->accumulatedCloud(), 0 ).isApprox( Eigen::Vector3f( 3, 4, 0 ), kEps ) );
+}
+
+TEST_F( AccumulatorTest, CloudsStampedBeforeAResetAreDropped )
+{
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  const rclcpp::Time before = node_->get_clock()->now();
+  acc->reset();
+  auto old_cloud = makeCloud( { { 0, 0, 0 } } );
+  old_cloud->header.stamp = before;
+  acc->processPointcloud( old_cloud );
+  EXPECT_EQ( acc->accumulatedCloud().width, 0u );
+
+  auto new_cloud = makeCloud( { { 5, 0, 0 } } );
+  new_cloud->header.stamp = node_->get_clock()->now();
+  acc->processPointcloud( new_cloud );
+  EXPECT_EQ( acc->accumulatedCloud().width, 1u );
+}
+
+TEST_F( AccumulatorTest, ResetPublishesTheEmptyCloud )
+{
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  acc->processPointcloud( makeCloud( { { 0, 0, 0 } } ) );
+  acc->publishPointcloud();
+  ASSERT_FALSE( acc->updated() );
+  acc->reset();
+  EXPECT_TRUE( acc->updated() );
+}
+
+TEST_F( AccumulatorTest, MalformedCloudsAreDropped )
+{
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  auto short_data = makeCloud( { { 0, 0, 0 }, { 5, 0, 0 } } );
+  short_data->data.resize( short_data->point_step );
+  acc->processPointcloud( short_data );
+  auto field_beyond = makeCloud( { { 0, 0, 0 } }, { { "intensity", 1.0f } } );
+  field_beyond->fields.back().offset = field_beyond->point_step;
+  acc->processPointcloud( field_beyond );
+  auto big_endian = makeCloud( { { 0, 0, 0 } } );
+  big_endian->is_bigendian = true;
+  acc->processPointcloud( big_endian );
+
+  EXPECT_EQ( acc->accumulatedCloud().width, 0u );
+}
+
+// Resets while the processing thread works through queued clouds. Build with -fsanitize=address
+// and -D_GLIBCXX_SANITIZE_VECTOR to see the race, the plain build only checks the map afterwards.
+TEST_F( AccumulatorTest, ResetWhileProcessingKeepsTheMapConsistent )
+{
+  std::vector<Eigen::Vector3f> points;
+  for ( int i = 0; i < 20000; ++i ) points.emplace_back( i % 100, i / 100, 0 );
+  const auto cloud = makeCloud( points );
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  for ( int k = 0; k < 30; ++k ) {
+    for ( int i = 0; i < 3; ++i ) acc->enqueue( cloud );
+    acc->waitForProcessing();
+    acc->reset();
+  }
+  std::this_thread::sleep_for( std::chrono::milliseconds( 200 ) );
+  acc->reset();
+  acc->processPointcloud( cloud );
+  EXPECT_EQ( acc->accumulatedCloud().width, 20000u );
+}
+
+// Destroys the accumulator while its thread processes a cloud. Build with -fsanitize=address to see
+// a use after free of the voxels.
+TEST_F( AccumulatorTest, DestroyingWhileProcessingIsSafe )
+{
+  std::vector<Eigen::Vector3f> points;
+  for ( int i = 0; i < 20000; ++i ) points.emplace_back( i % 100, i / 100, 0 );
+  const auto cloud = makeCloud( points );
+  for ( int k = 0; k < 20; ++k ) {
+    auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+    for ( int i = 0; i < 3; ++i ) acc->enqueue( cloud );
+    acc->waitForProcessing();
+  }
+  SUCCEED();
+}
+
+TEST( AccumulatorNode, RejectsAnUnknownAggregationModeAndInvalidValues )
+{
+  for ( const auto &parameter :
+        { rclcpp::Parameter( "aggregation_mode", "median" ), rclcpp::Parameter( "resolution", 0.0 ),
+          rclcpp::Parameter( "publish_rate", -1.0 ), rclcpp::Parameter( "max_range", -1.0 ) } ) {
+    rclcpp::NodeOptions options;
+    options.parameter_overrides( { parameter } );
+    EXPECT_THROW( hector_pointcloud_processing::PointcloudAccumulatorNode node( options ),
+                  std::invalid_argument )
+        << parameter.get_name();
+  }
 }
 
 TEST_F( AccumulatorTest, DisabledAccumulatorIgnoresPointclouds )

@@ -5,12 +5,19 @@
 #define HECTOR_POINTCLOUD_PROCESSING_POINTCLOUD_ACCUMULATOR_HPP
 
 #include <Eigen/Geometry>
+#include <atomic>
+#include <condition_variable>
+#include <cstdint>
+#include <deque>
 #include <mutex>
+#include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <thread>
+#include <unordered_map>
 
 namespace hector_pointcloud_processing
 {
@@ -20,9 +27,11 @@ enum class AggregationMode { AVERAGE, HIGHEST_Z, CLOSEST_TO_CENTER };
 class PointcloudAccumulatorBase
 {
 public:
+  //! max_range: points farther from the origin of their cloud's frame are skipped, 0 keeps all.
   PointcloudAccumulatorBase( rclcpp::Node &node, double resolution, const std::string &frame,
                              const rclcpp::Rate &publish_rate,
-                             const std::vector<std::string> &topics, size_t queue_size = 10 );
+                             const std::vector<std::string> &topics, size_t queue_size = 10,
+                             double max_range = 0.0 );
 
   virtual ~PointcloudAccumulatorBase();
 
@@ -32,9 +41,16 @@ public:
 
   bool isEnabled() const { return enabled_; }
 
-  virtual void reset();
+  //! Clouds stamped before the reset are dropped afterwards.
+  void reset();
 
 protected:
+  //! Called by the most derived destructor, before the members the thread uses are destroyed.
+  void stop();
+
+  //! Called with both mutexes held.
+  virtual void clearVoxels() = 0;
+
   void onNewPointcloud( const sensor_msgs::msg::PointCloud2::SharedPtr &msg );
 
   void processQueue();
@@ -54,25 +70,33 @@ protected:
     }
   };
 
+  //! 21 bits per axis, unique within 2^20 voxels of the origin in each direction.
   struct index_hash {
-    long cantor( long a, long b ) const noexcept { return ( a + b + 1 ) * ( a + b ) / 2 + b; }
-
     std::size_t operator()( const Index &index ) const noexcept
     {
-      return cantor( index.x, cantor( index.y, index.z ) );
+      constexpr uint64_t mask = ( uint64_t{ 1 } << 21 ) - 1;
+      const auto bits = [mask]( int value ) {
+        return ( static_cast<uint64_t>( value ) + ( uint64_t{ 1 } << 20 ) ) & mask;
+      };
+      return static_cast<std::size_t>( bits( index.x ) << 42 | bits( index.y ) << 21 |
+                                       bits( index.z ) );
     }
   };
 
-  bool shutting_down_ = false;
-  bool enabled_ = true;
+  bool shutting_down_ = false; // guarded by pointcloud_queue_mutex_
+  std::atomic<bool> enabled_ = true;
   bool updated_ = false;
   std::string frame_;
   double resolution_;
   size_t max_queue_size_;
+  double max_range_;
   unsigned int count_last_processed_ = 0;
   unsigned long count_total_processed_ = 0;
   unsigned int count_last_published_ = 0;
-  unsigned int dropped_pointclouds_ = 0;
+  std::atomic<unsigned int> dropped_pointclouds_ = 0;
+  rclcpp::Clock::SharedPtr clock_;
+  rclcpp::Time reset_stamp_;
+  rclcpp::Time latest_stamp_;
 
   sensor_msgs::msg::PointCloud2 accumulated_cloud_;
   tf2_ros::Buffer tfBuffer;
@@ -101,9 +125,12 @@ class PointcloudAccumulator : public PointcloudAccumulatorBase
 public:
   using PointcloudAccumulatorBase::PointcloudAccumulatorBase;
 
-  void reset() override;
+  ~PointcloudAccumulator() override { stop(); }
 
   void processPointcloud( const sensor_msgs::msg::PointCloud2::SharedPtr &msg ) override;
+
+protected:
+  void clearVoxels() override { voxel_map_.clear(); }
 
 private:
   template<typename T>

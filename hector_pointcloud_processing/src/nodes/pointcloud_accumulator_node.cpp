@@ -3,6 +3,8 @@
 
 #include "./pointcloud_accumulator_node.hpp"
 
+#include <stdexcept>
+
 namespace hector_pointcloud_processing
 {
 
@@ -17,6 +19,7 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   declare_parameter<int>( "queue_size", 10 );
   declare_parameter<double>( "publish_rate", 1.0 );
   declare_parameter<std::string>( "aggregation_mode", "average" );
+  declare_parameter<double>( "max_range", 0.0 );
   double resolution = get_parameter_or( "resolution", 0.1 );
   int queue_size = get_parameter_or( "queue_size", 10 );
   if ( queue_size < 0 ) {
@@ -26,6 +29,11 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   auto frame = get_parameter_or<std::string>( "frame", "map" );
   double rate = get_parameter_or( "publish_rate", 1.0 );
   auto aggregation_mode = get_parameter_or<std::string>( "aggregation_mode", "average" );
+  double max_range = get_parameter_or( "max_range", 0.0 );
+  if ( !( resolution > 0 ) || !( rate > 0 ) || !( max_range >= 0 ) ) {
+    throw std::invalid_argument( "resolution and publish_rate must be positive, max_range not "
+                                 "negative" );
+  }
 
   declare_parameter<std::vector<std::string>>( "topics", { "pointcloud" } );
   std::vector<std::string> topics = get_parameter( "topics" ).as_string_array();
@@ -33,15 +41,15 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   using hector_pointcloud_processing::PointcloudAccumulator;
   if ( aggregation_mode == "average" ) {
     accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::AVERAGE>>(
-        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size, max_range );
   } else if ( aggregation_mode == "highest_z" ) {
     accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::HIGHEST_Z>>(
-        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size, max_range );
   } else if ( aggregation_mode == "closest_to_center" ) {
     accumulator_ = std::make_shared<PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>>(
-        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size );
+        *this, resolution, frame, rclcpp::Rate( rate ), topics, queue_size, max_range );
   } else {
-    RCLCPP_ERROR( get_logger(), "Unknown aggregation mode '%s'", aggregation_mode.c_str() );
+    throw std::invalid_argument( "Unknown aggregation mode '" + aggregation_mode + "'" );
   }
 }
 } // namespace hector_pointcloud_processing

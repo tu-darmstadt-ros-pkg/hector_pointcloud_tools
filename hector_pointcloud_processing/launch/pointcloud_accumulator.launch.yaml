@@ -12,6 +12,9 @@ launch:
       name: aggregation_mode
       default: "average" # Options: average, highest_z, closest_to_center
   - arg:
+      name: max_range
+      default: "0.0" # m, 0 keeps all points
+  - arg:
       name: topics
       default: '["pointcloud"]'
   - arg:
@@ -36,6 +39,8 @@ launch:
           value: $(var publish_rate)
         - name: aggregation_mode
           value: $(var aggregation_mode)
+        - name: max_range
+          value: $(var max_range)
         - name: topics
           value: $(var topics)
         - name: use_sim_time
