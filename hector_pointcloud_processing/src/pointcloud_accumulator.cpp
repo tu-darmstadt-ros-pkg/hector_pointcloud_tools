@@ -175,8 +175,7 @@ int pointFieldSize( uint8_t datatype )
 void PointcloudAccumulatorBase::addField( const sensor_msgs::msg::PointField &field )
 {
   sensor_msgs::msg::PointField new_field = field;
-  const sensor_msgs::msg::PointField &last_field = accumulated_cloud_.fields.back();
-  new_field.offset = last_field.offset + last_field.count * pointFieldSize( field.datatype );
+  new_field.offset = accumulated_cloud_.point_step;
   accumulated_cloud_.fields.push_back( new_field );
   accumulated_cloud_.point_step += pointFieldSize( field.datatype ) * field.count;
 }

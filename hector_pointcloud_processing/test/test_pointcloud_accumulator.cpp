@@ -4,6 +4,8 @@
 #include "hector_pointcloud_processing/pointcloud_accumulator.hpp"
 
 #include <gtest/gtest.h>
+
+#include <cstring>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
@@ -187,6 +189,37 @@ TEST_F( AccumulatorTest, ExtraFieldsArePreserved )
   ASSERT_NE( it, cloud.fields.end() );
   const float value = *reinterpret_cast<const float *>( cloud.data.data() + it->offset );
   EXPECT_NEAR( value, 42.0f, kEps );
+}
+
+// A lidar layout: x, y, z and intensity as FLOAT32, then a FLOAT64 timestamp.
+TEST_F( AccumulatorTest, FieldsOfMixedTypesGetTheirOwnBytes )
+{
+  auto msg = makeCloud( { { 1.0f, 0.0f, 0.0f } }, { { "intensity", 42.0f } } );
+  sensor_msgs::msg::PointField timestamp;
+  timestamp.name = "timestamp";
+  timestamp.offset = 16;
+  timestamp.datatype = sensor_msgs::msg::PointField::FLOAT64;
+  timestamp.count = 1;
+  msg->fields.push_back( timestamp );
+  msg->point_step = 24;
+  msg->row_step = 24;
+  msg->data.resize( 24 );
+  const double stamp = 1234.5;
+  std::memcpy( msg->data.data() + 16, &stamp, sizeof( stamp ) );
+
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  acc->processPointcloud( msg );
+
+  const auto &cloud = acc->accumulatedCloud();
+  ASSERT_EQ( cloud.fields.size(), 5u );
+  EXPECT_EQ( cloud.fields[3].offset, 12u );
+  EXPECT_EQ( cloud.fields[4].offset, 16u );
+  EXPECT_EQ( cloud.point_step, 24u );
+  ASSERT_EQ( cloud.data.size(), 24u );
+  double value = 0.0;
+  std::memcpy( &value, cloud.data.data() + 16, sizeof( value ) );
+  EXPECT_DOUBLE_EQ( value, stamp );
+  EXPECT_NEAR( *reinterpret_cast<const float *>( cloud.data.data() + 12 ), 42.0f, kEps );
 }
 
 TEST_F( AccumulatorTest, ResetClearsAccumulatedCloud )
