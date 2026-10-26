@@ -310,7 +310,7 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
   // Taken before the last reset. An unstamped cloud is kept.
   if ( stamp.nanoseconds() != 0 && stamp < reset_stamp_ ) {
     RCLCPP_WARN_THROTTLE( logger_, *clock_, 5000,
-                          "Dropped a pointcloud stamped before the last reset.");
+                          "Dropped a pointcloud stamped before the last reset." );
     return;
   }
   // The fields of the first cloud after a reset make up the accumulated cloud.
