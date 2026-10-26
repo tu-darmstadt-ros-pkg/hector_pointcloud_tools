@@ -29,9 +29,8 @@ class PointcloudAccumulatorBase
 public:
   //! max_range: points farther from the origin of their cloud's frame are skipped, 0 keeps all.
   PointcloudAccumulatorBase( rclcpp::Node &node, double resolution, const std::string &frame,
-                             const rclcpp::Rate &publish_rate,
-                             const std::vector<std::string> &topics, size_t queue_size = 10,
-                             double max_range = 0.0 );
+                             const rclcpp::Rate &publish_rate, const std::vector<std::string> &topics,
+                             size_t queue_size = 10, double max_range = 0.0 );
 
   virtual ~PointcloudAccumulatorBase();
 

@@ -1,17 +1,17 @@
 // Copyright (c) 2025 Stefan Fabian. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include "hector_pointcloud_processing/pointcloud_accumulator.hpp"
 #include "../src/nodes/pointcloud_accumulator_node.hpp"
+#include "hector_pointcloud_processing/pointcloud_accumulator.hpp"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <thread>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <thread>
 
 using hector_pointcloud_processing::AggregationMode;
 using hector_pointcloud_processing::PointcloudAccumulator;
@@ -31,7 +31,10 @@ public:
 
   bool updated() const { return this->updated_; }
 
-  void enqueue( const sensor_msgs::msg::PointCloud2::SharedPtr &msg ) { this->onNewPointcloud( msg ); }
+  void enqueue( const sensor_msgs::msg::PointCloud2::SharedPtr &msg )
+  {
+    this->onNewPointcloud( msg );
+  }
 
   //! Waits until the processing thread has finished a cloud and holds the next one.
   void waitForProcessing()
@@ -39,7 +42,8 @@ public:
     while ( true ) {
       {
         std::lock_guard lock( this->accumulated_pointcloud_mutex_ );
-        if ( this->accumulated_cloud_.width > 0 ) return;
+        if ( this->accumulated_cloud_.width > 0 )
+          return;
       }
       std::this_thread::sleep_for( std::chrono::microseconds( 50 ) );
     }
@@ -303,6 +307,74 @@ TEST_F( AccumulatorTest, ResetPublishesTheEmptyCloud )
   ASSERT_FALSE( acc->updated() );
   acc->reset();
   EXPECT_TRUE( acc->updated() );
+}
+
+TEST_F( AccumulatorTest, ResetStampsTheEmptyCloud )
+{
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  auto cloud = makeCloud( { { 0, 0, 0 } } );
+  cloud->header.stamp = rclcpp::Time( 5, 0 );
+  acc->processPointcloud( cloud );
+  acc->reset();
+  EXPECT_GT( rclcpp::Time( acc->accumulatedCloud().header.stamp ).nanoseconds(), 5'000'000'000 );
+}
+
+TEST_F( AccumulatorTest, FieldsAreTakenFromTheFirstCloudAfterAReset )
+{
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  acc->processPointcloud( makeCloud( { { 0, 0, 0 } }, { { "intensity", 1.0f }, { "ring", 2.0f } } ) );
+  ASSERT_EQ( acc->accumulatedCloud().fields.size(), 5u );
+  acc->reset();
+  // A different sensor with a UINT8 intensity.
+  auto msg = makeCloud( { { 0, 0, 0 } } );
+  sensor_msgs::msg::PointField intensity;
+  intensity.name = "intensity";
+  intensity.offset = 12;
+  intensity.datatype = sensor_msgs::msg::PointField::UINT8;
+  intensity.count = 1;
+  msg->fields.push_back( intensity );
+  msg->point_step = 13;
+  msg->row_step = 13;
+  msg->data.resize( 13 );
+  msg->data[12] = 200;
+  acc->processPointcloud( msg );
+
+  const auto &cloud = acc->accumulatedCloud();
+  ASSERT_EQ( cloud.fields.size(), 4u );
+  EXPECT_EQ( cloud.fields[3].datatype, sensor_msgs::msg::PointField::UINT8 );
+  EXPECT_EQ( cloud.point_step, 13u );
+  ASSERT_EQ( cloud.data.size(), 13u );
+  EXPECT_EQ( cloud.data[12], 200 );
+}
+
+// A UINT8 field makes the accumulated point_step 13, so the second point is not aligned. Build with
+// -fsanitize=alignment to see misaligned accesses.
+TEST_F( AccumulatorTest, UnalignedPointsAreAveraged )
+{
+  const auto make = []( float x ) {
+    auto msg = makeCloud( { { 0, 0, 0 }, { x, 0, 0 } } );
+    sensor_msgs::msg::PointField ring;
+    ring.name = "ring";
+    ring.offset = 12;
+    ring.datatype = sensor_msgs::msg::PointField::UINT8;
+    ring.count = 1;
+    msg->fields.push_back( ring );
+    msg->point_step = 16;
+    msg->row_step = 32;
+    msg->data.assign( 32, 0 );
+    std::memcpy( msg->data.data() + 16, &x, sizeof( x ) );
+    return msg;
+  };
+  auto acc = makeAccumulator<AggregationMode::AVERAGE>( *node_, 1.0 );
+  acc->processPointcloud( make( 5.0f ) );
+  acc->processPointcloud( make( 5.2f ) );
+
+  const auto &cloud = acc->accumulatedCloud();
+  ASSERT_EQ( cloud.point_step, 13u );
+  ASSERT_EQ( cloud.width, 2u );
+  float x = 0;
+  std::memcpy( &x, cloud.data.data() + 13, sizeof( x ) );
+  EXPECT_NEAR( x, 5.1f, kEps );
 }
 
 TEST_F( AccumulatorTest, MalformedCloudsAreDropped )
