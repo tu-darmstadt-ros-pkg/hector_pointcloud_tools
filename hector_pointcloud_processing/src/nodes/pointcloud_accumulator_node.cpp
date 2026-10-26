@@ -14,20 +14,20 @@ PointcloudAccumulatorNode::PointcloudAccumulatorNode( const rclcpp::NodeOptions 
   if ( bool use_sim_time = get_parameter_or( "use_sim_time", false ); use_sim_time ) {
     RCLCPP_INFO( get_logger(), "Using simulation time." );
   }
-  declare_parameter<double>( "resolution", 0.1 );
+  declare_parameter<double>( "resolution", 0.025 );
   declare_parameter<std::string>( "frame", "map" );
   declare_parameter<int>( "queue_size", 10 );
-  declare_parameter<double>( "publish_rate", 1.0 );
+  declare_parameter<double>( "publish_rate", 0.2 );
   declare_parameter<std::string>( "aggregation_mode", "average" );
   declare_parameter<double>( "max_range", 0.0 );
-  double resolution = get_parameter_or( "resolution", 0.1 );
+  double resolution = get_parameter_or( "resolution", 0.025 );
   int queue_size = get_parameter_or( "queue_size", 10 );
   if ( queue_size < 0 ) {
     RCLCPP_ERROR( get_logger(), "Queue size was smaller than 0 which is not valid. I'm using 10." );
     queue_size = 10;
   }
   auto frame = get_parameter_or<std::string>( "frame", "map" );
-  double rate = get_parameter_or( "publish_rate", 1.0 );
+  double rate = get_parameter_or( "publish_rate", 0.2 );
   auto aggregation_mode = get_parameter_or<std::string>( "aggregation_mode", "average" );
   double max_range = get_parameter_or( "max_range", 0.0 );
   if ( !( resolution > 0 ) || !( rate > 0 ) || !( max_range >= 0 ) ) {

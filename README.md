@@ -84,9 +84,9 @@ ros2 launch hector_pointcloud_processing pointcloud_accumulator.launch.yaml reso
 
 | Parameter          | Type           | Default                    | Description                                                                                                                     |
 | ------------------ | -------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `resolution`       | `double`       | `0.1`                      | Resolution of the voxel filter in m, positive                                                                                   |
+| `resolution`       | `double`       | `0.025`                    | Resolution of the voxel filter in m, positive                                                                                   |
 | `frame`            | `string`       | `"map"`                    | The frame into which all pointclouds are accumulated                                                                            |
-| `publish_rate`     | `double`       | `1.0`                      | Frequency in Hz at which the node publishes `accumulated_pointcloud` when it changed, on the node's clock (sim time if set)     |
+| `publish_rate`     | `double`       | `0.2`                      | Frequency in Hz at which the node publishes `accumulated_pointcloud` when it changed, on the node's clock (sim time if set)     |
 | `aggregation_mode` | `string`       | `"average"`                | Controls how points within the same voxel are integrated. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
 | `topics`           | `string_array` | `["pointcloud"]`           | The topics names of all topics that should be accumulated together                                                              |
 | `max_range`        | `double`       | `0.0`                      | Points farther from the origin of their cloud's frame are skipped, 0 keeps all                                                 |
