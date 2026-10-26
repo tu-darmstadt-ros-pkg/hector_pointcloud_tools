@@ -5,6 +5,9 @@
 
 #include <tf2_eigen/tf2_eigen.hpp>
 
+#include <cmath>
+#include <cstring>
+
 namespace hector_pointcloud_processing
 {
 
@@ -12,9 +15,12 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
                                                       const std::string &frame,
                                                       const rclcpp::Rate &publish_rate,
                                                       const std::vector<std::string> &topics,
-                                                      size_t queue_size )
+                                                      size_t queue_size, double max_range )
     : frame_( frame ), resolution_( resolution ), max_queue_size_( queue_size ),
-      tfBuffer( node.get_clock() ), tfListener( tfBuffer, &node ), logger_( node.get_logger() )
+      max_range_( max_range ), clock_( node.get_clock() ),
+      reset_stamp_( 0, 0, node.get_clock()->get_clock_type() ),
+      latest_stamp_( 0, 0, node.get_clock()->get_clock_type() ), tfBuffer( node.get_clock() ),
+      tfListener( tfBuffer, &node ), logger_( node.get_logger() )
 {
   reset_service_ = node.create_service<std_srvs::srv::Trigger>(
       "reset_pointcloud", [this]( std_srvs::srv::Trigger::Request::SharedPtr,
@@ -47,7 +53,9 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
   publisher_options.qos_overriding_options = qos_overriding_options;
   accumulated_publisher_ = node.create_publisher<sensor_msgs::msg::PointCloud2>(
       "accumulated_pointcloud", rclcpp::QoS( 1 ).transient_local().reliable(), publisher_options );
-  publish_timer_ = node.create_wall_timer( publish_rate.period(), [this]() { publishPointcloud(); } );
+  // On the node's clock, so the rate is in simulation time when the node uses it.
+  publish_timer_ = rclcpp::create_timer( &node, node.get_clock(), publish_rate.period(),
+                                         [this]() { publishPointcloud(); } );
 
   accumulated_cloud_.header.frame_id = frame_;
   accumulated_cloud_.height = 1;
@@ -69,18 +77,27 @@ PointcloudAccumulatorBase::PointcloudAccumulatorBase( rclcpp::Node &node, double
   accumulated_cloud_.is_dense = false;
 
   RCLCPP_INFO( logger_,
-               "PointcloudAccumulator initialized with resolution %f and max queue size %lu in "
-               "frame %s. Publishing every %fs.",
-               resolution_, max_queue_size_, frame_.c_str(), 1E9 / publish_rate.period().count() );
+               "PointcloudAccumulator initialized with resolution %f, max range %f and max queue "
+               "size %lu in frame %s. Publishing at %f Hz.",
+               resolution_, max_range_, max_queue_size_, frame_.c_str(),
+               1E9 / publish_rate.period().count() );
 
   processing_thread_ = std::thread( &PointcloudAccumulatorBase::processQueue, this );
 }
 
 PointcloudAccumulatorBase::~PointcloudAccumulatorBase()
 {
-  shutting_down_ = true;
   pointcloud_subscriptions_.clear();
   publish_timer_.reset();
+  stop();
+}
+
+void PointcloudAccumulatorBase::stop()
+{
+  {
+    std::lock_guard lock( pointcloud_queue_mutex_ );
+    shutting_down_ = true;
+  }
   data_available.notify_all();
   if ( processing_thread_.joinable() ) {
     processing_thread_.join();
@@ -96,26 +113,40 @@ void PointcloudAccumulatorBase::reset()
   pointcloud_queue_.clear();
   accumulated_cloud_.data.clear();
   accumulated_cloud_.width = 0;
+  // Back to x, y, z, so the first cloud after the reset decides the extra fields.
+  accumulated_cloud_.fields.resize( 3 );
+  accumulated_cloud_.point_step = 12;
+  clearVoxels();
+  reset_stamp_ = clock_->now();
+  accumulated_cloud_.header.stamp = reset_stamp_;
+  latest_stamp_ = rclcpp::Time( 0, 0, clock_->get_clock_type() );
+  count_last_published_ = 0;
+  // Publishes the empty cloud, so late joiners do not get the map from before the reset.
+  updated_ = true;
 }
 
 void PointcloudAccumulatorBase::publishPointcloud()
 {
-  std::unique_lock lock( accumulated_pointcloud_mutex_ );
-  if ( !updated_ ) {
-    return;
+  std::unique_ptr<sensor_msgs::msg::PointCloud2> cloud;
+  {
+    // Copied under the lock and published outside it, so serializing does not stall processing.
+    std::unique_lock lock( accumulated_pointcloud_mutex_ );
+    if ( !updated_ ) {
+      return;
+    }
+    updated_ = false;
+    accumulated_cloud_.row_step = accumulated_cloud_.point_step * accumulated_cloud_.width;
+    cloud = std::make_unique<sensor_msgs::msg::PointCloud2>( accumulated_cloud_ );
+    RCLCPP_DEBUG( logger_, "Publishing pointcloud with %u points. (%u new, %u processed, %lu total)",
+                  accumulated_cloud_.width, accumulated_cloud_.width - count_last_published_,
+                  count_last_processed_, count_total_processed_ );
+    count_last_published_ = accumulated_cloud_.width;
+    count_last_processed_ = 0;
   }
-  updated_ = false;
-  accumulated_cloud_.row_step = accumulated_cloud_.point_step * accumulated_cloud_.width;
-  accumulated_publisher_->publish( accumulated_cloud_ );
-  RCLCPP_INFO( logger_, "Published pointcloud with %d points. (%u new, %u processed, %lu total)",
-               accumulated_cloud_.width, accumulated_cloud_.width - count_last_published_,
-               count_last_processed_, count_total_processed_ );
-  if ( dropped_pointclouds_ > 0 ) {
-    RCLCPP_WARN( logger_, "Dropped %u incoming pointclouds due to full queue.", dropped_pointclouds_ );
-    dropped_pointclouds_ = 0;
+  accumulated_publisher_->publish( std::move( cloud ) );
+  if ( const unsigned int dropped = dropped_pointclouds_.exchange( 0 ); dropped > 0 ) {
+    RCLCPP_WARN( logger_, "Dropped %u incoming pointclouds due to full queue.", dropped );
   }
-  count_last_published_ = accumulated_cloud_.width;
-  count_last_processed_ = 0;
 }
 
 void PointcloudAccumulatorBase::onNewPointcloud( const sensor_msgs::msg::PointCloud2::SharedPtr &msg )
@@ -124,7 +155,7 @@ void PointcloudAccumulatorBase::onNewPointcloud( const sensor_msgs::msg::PointCl
     return;
   }
   std::lock_guard lock( pointcloud_queue_mutex_ );
-  if ( max_queue_size_ != 0 && pointcloud_queue_.size() > max_queue_size_ ) {
+  if ( max_queue_size_ != 0 && pointcloud_queue_.size() >= max_queue_size_ ) {
     pointcloud_queue_.pop_front();
     ++dropped_pointclouds_;
   }
@@ -134,18 +165,22 @@ void PointcloudAccumulatorBase::onNewPointcloud( const sensor_msgs::msg::PointCl
 
 void PointcloudAccumulatorBase::processQueue()
 {
-  while ( !shutting_down_ ) {
+  while ( true ) {
     sensor_msgs::msg::PointCloud2::SharedPtr msg;
     {
       std::unique_lock lock( pointcloud_queue_mutex_ );
-      if ( pointcloud_queue_.empty() ) {
-        data_available.wait( lock );
-        continue;
+      data_available.wait( lock, [this] { return shutting_down_ || !pointcloud_queue_.empty(); } );
+      if ( shutting_down_ ) {
+        return;
       }
       msg = pointcloud_queue_.front();
       pointcloud_queue_.pop_front();
     }
-    processPointcloud( msg );
+    try {
+      processPointcloud( msg );
+    } catch ( const std::exception &e ) {
+      RCLCPP_ERROR_THROTTLE( logger_, *clock_, 5000, "Dropped a pointcloud: %s", e.what() );
+    }
   }
 }
 
@@ -175,17 +210,9 @@ int pointFieldSize( uint8_t datatype )
 void PointcloudAccumulatorBase::addField( const sensor_msgs::msg::PointField &field )
 {
   sensor_msgs::msg::PointField new_field = field;
-  const sensor_msgs::msg::PointField &last_field = accumulated_cloud_.fields.back();
-  new_field.offset = last_field.offset + last_field.count * pointFieldSize( field.datatype );
+  new_field.offset = accumulated_cloud_.point_step;
   accumulated_cloud_.fields.push_back( new_field );
   accumulated_cloud_.point_step += pointFieldSize( field.datatype ) * field.count;
-}
-
-template<AggregationMode AGGREGATION_MODE>
-void PointcloudAccumulator<AGGREGATION_MODE>::reset()
-{
-  PointcloudAccumulatorBase::reset();
-  voxel_map_.clear();
 }
 
 namespace
@@ -200,6 +227,57 @@ int32_t findChannelIndex( const sensor_msgs::msg::PointCloud2 &msg, const std::s
   return -1;
 }
 
+bool knownDatatype( uint8_t datatype )
+{
+  return datatype >= sensor_msgs::msg::PointField::INT8 &&
+         datatype <= sensor_msgs::msg::PointField::FLOAT64;
+}
+
+//! Why the cloud's layout cannot be read safely, or an empty string.
+std::string layoutProblem( const sensor_msgs::msg::PointCloud2 &msg )
+{
+  if ( msg.is_bigendian ) {
+    return "big endian data";
+  }
+  if ( static_cast<uint64_t>( msg.width ) * msg.point_step > msg.row_step ) {
+    return "rows shorter than width * point_step";
+  }
+  if ( static_cast<uint64_t>( msg.row_step ) * msg.height > msg.data.size() ) {
+    return "less data than row_step * height";
+  }
+  for ( const auto &field : msg.fields ) {
+    if ( !knownDatatype( field.datatype ) ) {
+      return "unknown datatype of field " + field.name;
+    }
+    if ( field.offset + static_cast<uint64_t>( pointFieldSize( field.datatype ) ) * field.count >
+         msg.point_step ) {
+      return "field " + field.name + " beyond point_step";
+    }
+  }
+  return {};
+}
+
+template<typename T>
+float readValue( const uint8_t *data )
+{
+  T value;
+  std::memcpy( &value, data, sizeof( T ) );
+  return static_cast<float>( value );
+}
+
+// The x, y, z of an accumulated point are not aligned if an extra field of an odd size precedes it.
+Eigen::Vector3f loadPoint( const uint8_t *data )
+{
+  Eigen::Vector3f point;
+  std::memcpy( point.data(), data, 3 * sizeof( float ) );
+  return point;
+}
+
+void storePoint( uint8_t *data, const Eigen::Vector3f &point )
+{
+  std::memcpy( data, point.data(), 3 * sizeof( float ) );
+}
+
 } // namespace
 
 template<AggregationMode AGGREGATION_MODE>
@@ -208,9 +286,10 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
     const sensor_msgs::msg::PointCloud2::SharedPtr &msg )
 {
   using namespace std::chrono_literals;
+  // Blocks the queue for up to 1 s, clouds beyond queue_size are dropped meanwhile.
   if ( !tfBuffer.canTransform( frame_, msg->header.frame_id, msg->header.stamp, 1s ) ) {
-    RCLCPP_WARN( logger_, "Can't transform from %s to %s!", msg->header.frame_id.c_str(),
-                 frame_.c_str() );
+    RCLCPP_WARN_THROTTLE( logger_, *clock_, 5000, "Can't transform from %s to %s!",
+                          msg->header.frame_id.c_str(), frame_.c_str() );
     return;
   }
   geometry_msgs::msg::TransformStamped transform_msg =
@@ -226,31 +305,44 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
     return;
   }
 
-  // Lock pointcloud for modification
   std::unique_lock lock( accumulated_pointcloud_mutex_ );
-  // Add fields that are not in pointcloud already
+  const rclcpp::Time stamp( msg->header.stamp, clock_->get_clock_type() );
+  // Taken before the last reset. An unstamped cloud is kept.
+  if ( stamp.nanoseconds() != 0 && stamp < reset_stamp_ ) {
+    RCLCPP_WARN_THROTTLE( logger_, *clock_, 5000,
+                          "Dropped a pointcloud stamped before the last reset." );
+    return;
+  }
+  // The fields of the first cloud after a reset make up the accumulated cloud.
   for ( const auto &field : msg->fields ) {
     if ( std::any_of( accumulated_cloud_.fields.begin(), accumulated_cloud_.fields.end(),
                       [&field]( const auto &item ) { return item.name == field.name; } ) ) {
       continue;
     }
     if ( accumulated_cloud_.width != 0 ) {
-      RCLCPP_ERROR_ONCE( logger_, "Mixing pointclouds with different fields is not supported." );
+      RCLCPP_WARN_ONCE( logger_,
+                        "Field %s is not in the accumulated cloud and is left out. The fields "
+                        "come from the first cloud.",
+                        field.name.c_str() );
       break;
     }
     addField( field );
   }
 
+  const float max_range_squared = static_cast<float>( max_range_ * max_range_ );
   const uint8_t *data = msg->data.data();
   const unsigned int width = msg->width;
   const unsigned int height = msg->height;
   for ( unsigned int i = 0; i < height; ++i ) {
-    const uint8_t *point_data = data;
     for ( unsigned int k = 0; k < width; ++k ) {
-      Eigen::Vector3f point;
-      point.x() = static_cast<float>( *reinterpret_cast<const T *>( point_data + x_field.offset ) );
-      point.y() = static_cast<float>( *reinterpret_cast<const T *>( point_data + y_field.offset ) );
-      point.z() = static_cast<float>( *reinterpret_cast<const T *>( point_data + z_field.offset ) );
+      const uint8_t *point_data = data + static_cast<size_t>( i ) * msg->row_step +
+                                  static_cast<size_t>( k ) * msg->point_step;
+      Eigen::Vector3f point( readValue<T>( point_data + x_field.offset ),
+                             readValue<T>( point_data + y_field.offset ),
+                             readValue<T>( point_data + z_field.offset ) );
+      if ( !point.allFinite() || ( max_range_ > 0 && point.squaredNorm() > max_range_squared ) ) {
+        continue;
+      }
       point = transform * point;
       Index index = { static_cast<int>( std::round( point.x() / resolution_ ) ),
                       static_cast<int>( std::round( point.y() / resolution_ ) ),
@@ -262,13 +354,14 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointCloudData(
       } else {
         updatePoint( index, point, it->second );
       }
-      point_data += msg->point_step;
     }
-    data += msg->row_step;
   }
   count_last_processed_ += width * height;
   count_total_processed_ += width * height;
-  accumulated_cloud_.header.stamp = msg->header.stamp;
+  if ( stamp > latest_stamp_ ) {
+    latest_stamp_ = stamp;
+    accumulated_cloud_.header.stamp = msg->header.stamp;
+  }
   updated_ = true;
 }
 
@@ -280,11 +373,16 @@ void PointcloudAccumulator<AGGREGATION_MODE>::processPointcloud(
     return;
   }
 
+  if ( const std::string problem = layoutProblem( *msg ); !problem.empty() ) {
+    RCLCPP_WARN_THROTTLE( logger_, *clock_, 5000, "Dropped a pointcloud with %s.", problem.c_str() );
+    return;
+  }
   int32_t xi = findChannelIndex( *msg, "x" );
   int32_t yi = findChannelIndex( *msg, "y" );
   int32_t zi = findChannelIndex( *msg, "z" );
   if ( xi == -1 || yi == -1 || zi == -1 ) {
-    RCLCPP_WARN( logger_, "No x, y, or z channel found in point cloud message!" );
+    RCLCPP_WARN_THROTTLE( logger_, *clock_, 5000,
+                          "No x, y, or z channel found in point cloud message!" );
     return;
   }
   switch ( msg->fields[xi].datatype ) {
@@ -330,8 +428,7 @@ PointcloudAccumulator<AGGREGATION_MODE>::addNewPoint(
   accumulated_cloud_.data.resize( accumulated_cloud_.width * accumulated_cloud_.point_step );
   auto *out = accumulated_cloud_.data.data();
   out += ( accumulated_cloud_.width - 1 ) * accumulated_cloud_.point_step;
-  Eigen::Map<Eigen::Vector3f> point_map( reinterpret_cast<float *>( out ) );
-  point_map = point;
+  storePoint( out, point );
   // Copy fields
   for ( size_t i = 3; i < accumulated_cloud_.fields.size(); ++i ) {
     const auto &target_field = accumulated_cloud_.fields[i];
@@ -356,9 +453,8 @@ PointcloudAccumulator<AGGREGATION_MODE>::addNewPoint(
   } else if ( AGGREGATION_MODE == AggregationMode::HIGHEST_Z ) {
     return { point_index, point.z() };
   } else if ( AGGREGATION_MODE == AggregationMode::CLOSEST_TO_CENTER ) {
-    Eigen::Vector3f center( index.x, index.y, index.z );
-    center.array() += 0.5;
-    center *= resolution_;
+    // round() puts voxel i around i * resolution.
+    const Eigen::Vector3f center = Eigen::Vector3f( index.x, index.y, index.z ) * resolution_;
     float distance = ( point - center ).squaredNorm();
     return { point_index, distance };
   }
@@ -369,9 +465,9 @@ void PointcloudAccumulator<AggregationMode::AVERAGE>::updatePoint( const Index &
                                                                    const Eigen::Vector3f &point,
                                                                    PointInfo &info )
 {
-  Eigen::Map<Eigen::Vector3f> point_map( reinterpret_cast<float *>(
-      accumulated_cloud_.data.data() + info.index * accumulated_cloud_.point_step ) );
-  point_map = point_map + ( point - point_map ) / static_cast<float>( info.count + 1 );
+  uint8_t *data = accumulated_cloud_.data.data() + info.index * accumulated_cloud_.point_step;
+  const Eigen::Vector3f average = loadPoint( data );
+  storePoint( data, average + ( point - average ) / static_cast<float>( info.count + 1 ) );
   info.count += 1;
 }
 
@@ -382,9 +478,7 @@ void PointcloudAccumulator<AggregationMode::HIGHEST_Z>::updatePoint( const Index
 {
   if ( point.z() > info.z ) {
     info.z = point.z();
-    Eigen::Map<Eigen::Vector3f> point_map( reinterpret_cast<float *>(
-        accumulated_cloud_.data.data() + info.index * accumulated_cloud_.point_step ) );
-    point_map = point;
+    storePoint( accumulated_cloud_.data.data() + info.index * accumulated_cloud_.point_step, point );
   }
 }
 
@@ -392,15 +486,11 @@ template<>
 void PointcloudAccumulator<AggregationMode::CLOSEST_TO_CENTER>::updatePoint(
     const Index &index, const Eigen::Vector3f &point, PointInfo &info )
 {
-  Eigen::Vector3f center( index.x, index.y, index.z );
-  center.array() += 0.5;
-  center *= resolution_;
+  const Eigen::Vector3f center = Eigen::Vector3f( index.x, index.y, index.z ) * resolution_;
   float distance = ( point - center ).squaredNorm();
   if ( distance < info.distance ) {
     info.distance = distance;
-    Eigen::Map<Eigen::Vector3f> point_map( reinterpret_cast<float *>(
-        accumulated_cloud_.data.data() + info.index * accumulated_cloud_.point_step ) );
-    point_map = point;
+    storePoint( accumulated_cloud_.data.data() + info.index * accumulated_cloud_.point_step, point );
   }
 }
 

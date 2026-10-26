@@ -53,10 +53,12 @@ subscription is first created; overrides supplied at startup are applied at that
 
 Voxel-filtered pointcloud accumulator. You can choose if it should store a running average, the highest z or the point closest to the center for each voxel.
 
-Example:
+Each cloud is transformed into `frame` with the transform at its stamp, waiting up to 1 s for it. Points that are not finite or farther than `max_range` from the origin of their cloud's frame are skipped. Nothing is removed until a reset. Clouds stamped before the last reset are dropped, unstamped clouds are kept. The first cloud after a reset decides the fields of the accumulated cloud, and the extra fields of a voxel keep the values of its first point.
+
+Example (the launch file remaps the output to `output_topic`):
 
 ```bash
-ros2 launch hector_pointcloud_accumulator pointcloud_accumulator.launch.yaml resolution:=0.025 frame:=map publish_rate:=0.2 aggregation_mode:=average topics:=["pointcloud1","pointcloud2"] output_topic:=accumulated_pointcloud
+ros2 launch hector_pointcloud_processing pointcloud_accumulator.launch.yaml resolution:=0.025 frame:=map publish_rate:=0.2 aggregation_mode:=average max_range:=10.0 topics:=["pointcloud1","pointcloud2"] output_topic:=accumulated_pointcloud
 ```
 
 #### Subscribed Topics
@@ -82,12 +84,13 @@ ros2 launch hector_pointcloud_accumulator pointcloud_accumulator.launch.yaml res
 
 | Parameter          | Type           | Default                    | Description                                                                                                                     |
 | ------------------ | -------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `resolution`       | `double`       | `0.025`                    | Resolution of the voxel filter                                                                                                  |
+| `resolution`       | `double`       | `0.025`                    | Resolution of the voxel filter in m, positive                                                                                   |
 | `frame`            | `string`       | `"map"`                    | The frame into which all pointclouds are accumulated                                                                            |
-| `publish_rate`     | `double`       | `0.2`                      | Frequency at which the node publishes on `/cloud_out`                                                                           |
+| `publish_rate`     | `double`       | `0.2`                      | Frequency in Hz at which the node publishes `accumulated_pointcloud` when it changed, on the node's clock (sim time if set)     |
 | `aggregation_mode` | `string`       | `"average"`                | Controls how points within the same voxel are integrated. Allowed values are: `"average"`, `"highest_z"`, `"closest_to_center"` |
 | `topics`           | `string_array` | `["pointcloud"]`           | The topics names of all topics that should be accumulated together                                                              |
-| `output_topic`     | `string`       | `"accumulated_pointcloud"` | The topic name of the accumulated pointcloud                                                                                    |
+| `max_range`        | `double`       | `0.0`                      | Points farther from the origin of their cloud's frame are skipped, 0 keeps all                                                 |
+| `queue_size`       | `int`          | `10`                       | Clouds waiting for processing, the oldest is dropped beyond it, 0 is unbounded                                                  |
 
 ### `pointcloud_decimator`
 
