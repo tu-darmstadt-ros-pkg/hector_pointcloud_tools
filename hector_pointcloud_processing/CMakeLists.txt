@@ -78,6 +78,9 @@ rclcpp_components_register_node(
 rclcpp_components_register_node(
   hector_pointcloud_processing PLUGIN
   "hector_pointcloud_processing::PointcloudMerger" EXECUTABLE pointcloud_merger)
+
+rclcpp_components_register_node(
+  hector_pointcloud_processing PLUGIN
   "hector_pointcloud_processing::DistanceAdaptivePointcloudDecimator"
   EXECUTABLE distance_adaptive_pointcloud_decimator)
 
