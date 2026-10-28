@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.16)
 project(hector_pointcloud_io)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -24,14 +24,13 @@ target_include_directories(
   hector_pointcloud_io
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(
-  hector_pointcloud_io
-  rclcpp
-  rclcpp_components
-  sensor_msgs
-  std_msgs
-  std_srvs
-  pcl_conversions)
+target_link_libraries(hector_pointcloud_io
+                      rclcpp::rclcpp
+                      rclcpp_components::component
+                      sensor_msgs::sensor_msgs
+                      std_msgs::std_msgs
+                      std_srvs::std_srvs
+                      pcl_conversions::pcl_conversions)
 
 rclcpp_components_register_node(
   hector_pointcloud_io PLUGIN "hector_pointcloud_io::PointcloudSaver"

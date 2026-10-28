@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.16)
 project(hector_pointcloud_processing)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -27,6 +27,7 @@ add_library(
   include/hector_pointcloud_processing/voxel_common.hpp
   include/hector_pointcloud_processing/voxel_filter.hpp
   include/hector_pointcloud_processing/distance_adaptive_voxel_filter.hpp
+  include/hector_pointcloud_processing/pointcloud_merger.hpp
   include/hector_pointcloud_processing/pointcloud_relay.hpp
   src/nodes/pointcloud_accumulator_node.hpp
   src/nodes/pointcloud_accumulator_node.cpp
@@ -34,6 +35,7 @@ add_library(
   src/pointcloud_decimator.cpp
   src/voxel_filter.cpp
   src/distance_adaptive_voxel_filter.cpp
+  src/pointcloud_merger.cpp
   src/pointcloud_relay.cpp)
 
 target_include_directories(
@@ -41,17 +43,16 @@ target_include_directories(
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          $<INSTALL_INTERFACE:include>)
 
-ament_target_dependencies(
-  hector_pointcloud_processing
-  rclcpp
-  rclcpp_components
-  sensor_msgs
-  std_msgs
-  std_srvs
-  geometry_msgs
-  tf2_eigen
-  tf2_ros
-  point_cloud_transport)
+target_link_libraries(hector_pointcloud_processing
+                      rclcpp::rclcpp
+                      rclcpp_components::component
+                      sensor_msgs::sensor_msgs
+                      std_msgs::std_msgs
+                      std_srvs::std_srvs
+                      geometry_msgs::geometry_msgs
+                      tf2_eigen::tf2_eigen
+                      tf2_ros::tf2_ros
+                      point_cloud_transport::point_cloud_transport)
 
 rclcpp_components_register_node(
   hector_pointcloud_processing PLUGIN
@@ -71,6 +72,10 @@ rclcpp_components_register_node(
   hector_pointcloud_processing PLUGIN
   "hector_pointcloud_processing::DistanceAdaptiveVoxelFilter" EXECUTABLE
   distance_adaptive_voxel_filter)
+
+rclcpp_components_register_node(
+  hector_pointcloud_processing PLUGIN
+  "hector_pointcloud_processing::PointcloudMerger" EXECUTABLE pointcloud_merger)
 
 rclcpp_components_register_node(
   hector_pointcloud_processing PLUGIN

@@ -95,7 +95,7 @@ void PointcloudDecimator::pointcloudCallback( const sensor_msgs::msg::PointCloud
 
   output.data.clear();
   output.data.reserve( point_count * point_step );
-  const std::back_insert_iterator<std::vector<unsigned char>> output_iterator =
+  const std::back_insert_iterator<decltype( output.data )> output_iterator =
       std::back_inserter( output.data );
 
   if ( elimination_method_ == "random" ) {
