@@ -5,7 +5,7 @@
 #include <sstream>
 
 #include <Eigen/Geometry>
-#include <tf2/exceptions.h>
+#include <tf2/exceptions.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
 #include "hector_pointcloud_processing/voxel_common.hpp"
